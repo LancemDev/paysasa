@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: paysasa-api
+    runtime: python
+    rootDir: backend/server
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: PAYPAL_ADAPTER
+        value: mock
+      - key: MAX_AMOUNT_MINOR
+        value: "1000000"
+      - key: ENABLE_DEV_ROUTES
+        value: "true"
+      - key: CORS_ORIGIN
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_ENV
+        value: sandbox
+
+  - type: cron
+    name: paysasa-chase
+    runtime: python
+    rootDir: backend/server
+    schedule: "0 6 * * *"   # 06:00 UTC = 09:00 Nairobi
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.jobs.chase
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
