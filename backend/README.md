@@ -1,6 +1,6 @@
 # PaySasa AI: Backend
 
-Everything here lives in `backend/`. FastAPI service in `server/`: the Gemini agent, the Supabase schema, the PayPal webhook, the approval endpoints and the overdue-chasing job. Only the adapter in `server/app/paypal/` (PayPal teammate) talks to PayPal; everything else calls the contract in `server/app/paypal_contract.py`.
+Everything here lives in `backend/`. FastAPI service in `server/`: the Claude agent, the Supabase schema, the PayPal webhook, the approval endpoints and the overdue-chasing job. Only the adapter in `server/app/paypal/` (PayPal teammate) talks to PayPal; everything else calls the contract in `server/app/paypal_contract.py`.
 
 ### Environment variables
 
@@ -10,7 +10,7 @@ Copy `server/.env.example` to `server/.env` (git-ignored). On Render, set the sa
 |---|---|
 | `DATABASE_URL` | Supabase Postgres connection string (the pooler URL works) |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Used to check users' Bearer tokens |
-| `GEMINI_API_KEY`, `LLM_MODEL` | Gemini key and model name, e.g. a current Gemini Flash model |
+| `ANTHROPIC_API_KEY`, `LLM_MODEL` | Claude key and model name, e.g. `claude-sonnet-5-5` |
 | `PAYPAL_ADAPTER` | `mock` (default) or `real` |
 | `MAX_AMOUNT_MINOR` | Per-invoice and per-payout cap in cents (default `1000000` = $10,000) |
 | `ENABLE_DEV_ROUTES` | `true` mounts `/dev/*` for rehearsals; set `false` after the video is recorded |
@@ -30,7 +30,7 @@ Users can only read their own rows (row-level security); all writes go through t
 ```sh
 cd server
 uv venv --python 3.12 .venv && uv pip install -r requirements.txt   # or python -m venv + pip
-cp .env.example .env    # fill in DATABASE_URL, SUPABASE_*, GEMINI_API_KEY, LLM_MODEL
+cp .env.example .env    # fill in DATABASE_URL, SUPABASE_*, ANTHROPIC_API_KEY, LLM_MODEL
 .venv/bin/uvicorn app.main:app --reload
 ```
 
@@ -66,6 +66,17 @@ All `/api/*` routes need `Authorization: Bearer <Supabase access token>`. Errors
 ### Deploy (Render)
 
 `backend/render.yaml` defines the web service `paysasa-api` and the daily cron job `paysasa-chase` (06:00 UTC), both rooted at `backend/server`. Because the file is not at the repo root, set the Blueprint path to `backend/render.yaml` when creating the Blueprint on Render. Once the web service is live, the PayPal webhook URL is `https://<service>.onrender.com/webhooks/paypal`, subscribed to `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED`, `PAYMENT.PAYOUTSBATCH.SUCCESS` and `PAYMENT.PAYOUTSBATCH.DENIED`.
+
+**The mock adapter needs one persistent instance.** It keeps its invoices and payouts in memory, so a webhook that lands on a different instance (or after a restart) cannot find the invoice and PayPal will keep retrying. A long-lived service like Render's works; a serverless host with several instances does not, until the real adapter is in place or the mock is backed by Postgres.
+
+### Deploy (Vercel)
+
+Vercel runs this FastAPI app as a single function, but two things differ from Render:
+
+- **The entrypoint.** Set the project Root Directory to `backend/server` so Vercel finds `requirements.txt`, `.python-version` and `app/main.py`.
+- **The cron job.** Vercel Cron calls an HTTP path; it cannot run `python -m app.jobs.chase`. Add a `GET /api/cron/chase` route guarded by `Authorization: Bearer $CRON_SECRET` (Vercel sends that header automatically when `CRON_SECRET` is set) and point `vercel.json` at it: `{"crons": [{"path": "/api/cron/chase", "schedule": "0 6 * * *"}]}`.
+
+The mock-adapter caveat above applies here too.
 
 ### Open questions (backend additions to spec Section 15)
 

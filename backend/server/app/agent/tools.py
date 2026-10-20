@@ -362,7 +362,8 @@ class Tool:
 
 
 def _obj(properties: dict, required: list[str]) -> dict:
-    return {"type": "object", "properties": properties, "required": required}
+    return {"type": "object", "properties": properties, "required": required,
+            "additionalProperties": False}
 
 
 TOOLS: dict[str, Tool] = {t.spec.name: t for t in [

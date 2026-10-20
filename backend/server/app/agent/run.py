@@ -17,6 +17,8 @@ log = logging.getLogger(__name__)
 MAX_ROUNDS = 6
 HISTORY_RUNS = 10
 OUT_OF_ROUNDS_REPLY = "I ran out of steps before finishing. Check the dashboard to see what was done."
+# Claude can end a turn with no text and no tool call (a refusal, or a truncated reply).
+NOTHING_DONE_REPLY = "I did not do anything with that. Could you rephrase the request?"
 
 
 class AgentFailed(Exception):
@@ -67,7 +69,7 @@ async def run_agent(
                 calls_log.append({"name": call.name, "args": call.args, "result": result})
                 results.append(ToolResult(name=call.name, result=result, id=call.id))
             turn = await chat.send(results)
-        reply = OUT_OF_ROUNDS_REPLY if turn.calls else (turn.text or "Done.")
+        reply = OUT_OF_ROUNDS_REPLY if turn.calls else (turn.text or NOTHING_DONE_REPLY)
     except Exception as e:
         log.exception("agent run %s failed", run_id)
         async with pool.connection() as conn:
