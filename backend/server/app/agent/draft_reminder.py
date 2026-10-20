@@ -28,6 +28,8 @@ def template(client_name: str, sender_name: str, description: str, amount: str, 
 
 
 def is_valid(text: str, amount_minor: int) -> bool:
+    # A draft cut off at max_tokens is always longer than MAX_CHARS, so the length check
+    # already catches it and sends the reminder back to the template.
     if not text or len(text) > MAX_CHARS or _LINK_RE.search(text):
         return False
     for m in _MONEY_RE.finditer(text):
