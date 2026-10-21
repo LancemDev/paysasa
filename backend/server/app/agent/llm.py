@@ -64,7 +64,6 @@ class ClaudeLLM:
         model: str = "",
         *,
         max_tokens: int = CHAT_MAX_TOKENS,
-        temperature: float = CHAT_TEMPERATURE,
         client: Any = None,
     ):
         if client is None:
@@ -74,11 +73,10 @@ class ClaudeLLM:
         self._client = client
         self._model = model
         self._max_tokens = max_tokens
-        self._temperature = temperature
 
     def start_chat(self, *, system: str, history: list[tuple[str, str]], tools: list[ToolSpec]) -> Chat:
         return _ClaudeChat(
-            self._client, self._model, self._max_tokens, self._temperature,
+            self._client, self._model, self._max_tokens,
             system=system, history=history, tools=tools,
         )
 
@@ -87,7 +85,6 @@ class ClaudeLLM:
         resp = await self._client.messages.create(
             model=self._model,
             max_tokens=DRAFT_MAX_TOKENS,
-            temperature=DRAFT_TEMPERATURE,
             system=system,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -95,11 +92,10 @@ class ClaudeLLM:
 
 
 class _ClaudeChat:
-    def __init__(self, client, model, max_tokens, temperature, *, system, history, tools):
+    def __init__(self, client, model, max_tokens, *, system, history, tools):
         self._client = client
         self._model = model
         self._max_tokens = max_tokens
-        self._temperature = temperature
         self._system = system
         self._messages: list[dict] = []
         for user_msg, reply in history:
@@ -130,7 +126,6 @@ class _ClaudeChat:
         resp = await self._client.messages.create(
             model=self._model,
             max_tokens=self._max_tokens,
-            temperature=self._temperature,
             system=self._system,
             messages=list(self._messages),
             tools=self._tools,
