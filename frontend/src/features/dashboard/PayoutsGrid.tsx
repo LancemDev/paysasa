@@ -28,7 +28,7 @@ export default function PayoutsGrid({ rows, onReview, onOpenInvoice }: { rows: A
   const columnDefs = useMemo<ColDef<ActionRow>[]>(
     () => [
       { colId: "stage", field: "stageLabel", headerName: "Stage", rowGroup: true, hide: true },
-      { colId: "status", headerName: "Status", field: "statusDisplay.label", cellRenderer: ActionStatusCell, filter: "agSetColumnFilter", width: 190, pinned: "left" },
+      { colId: "status", headerName: "Status", field: "statusDisplay.label", cellRenderer: ActionStatusCell, filter: "agSetColumnFilter", width: 190 },
       { colId: "payee", field: "payeeName", headerName: "Recipient / client", minWidth: 150, flex: 1, filter: "agTextColumnFilter" },
       { colId: "type", field: "typeLabel", headerName: "Type", width: 110, filter: "agSetColumnFilter" },
       {
@@ -44,10 +44,10 @@ export default function PayoutsGrid({ rows, onReview, onOpenInvoice }: { rows: A
         cellClass: "tabular font-medium",
         width: 180,
       },
-      { colId: "summary", field: "summary", headerName: "Summary", minWidth: 220, flex: 1.4, tooltipField: "summary", filter: "agTextColumnFilter" },
+      { colId: "summary", field: "summary", headerName: "Summary", hide: true, minWidth: 220, flex: 1.4, tooltipField: "summary", filter: "agTextColumnFilter" },
       { colId: "trigger", field: "triggerLabel", headerName: "Trigger invoice", minWidth: 240, flex: 1.2, cellRenderer: TriggerCell, cellRendererParams: { onOpenInvoice } },
       { colId: "created_at", field: "created_at", headerName: "Created", cellRenderer: TimeCell, sort: "desc", width: 140 },
-      { colId: "review", headerName: "", cellRenderer: ReviewCell, cellRendererParams: { onReview }, pinned: "right", width: 130, sortable: false, filter: false, resizable: false, suppressHeaderMenuButton: true },
+      { colId: "review", headerName: "", cellRenderer: ReviewCell, cellRendererParams: { onReview }, pinned: "right", width: 130, cellClass: "flex items-center", sortable: false, filter: false, resizable: false, suppressHeaderMenuButton: true },
     ],
     [onReview, onOpenInvoice],
   );
@@ -69,6 +69,7 @@ export default function PayoutsGrid({ rows, onReview, onOpenInvoice }: { rows: A
           autoGroupColumnDef={autoGroupColumnDef}
           groupDefaultExpanded={1}
           suppressAggFuncInHeader
+          grandTotalRow="bottom"
           initialGroupOrderComparator={({ nodeA, nodeB }) => STAGE_ORDER.indexOf(String(nodeA.key)) - STAGE_ORDER.indexOf(String(nodeB.key))}
           getRowId={getRowId}
           rowClassRules={rowClassRules}

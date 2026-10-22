@@ -18,6 +18,8 @@ const STAGE_TONE: Record<string, StatusDisplay> = {
 
 /** Group row label: status badge + row count. */
 export function GroupInner(p: CustomCellRendererProps) {
+  if (p.node.footer && p.node.level === -1) return <span className="font-semibold">Total (per currency)</span>;
+  if (!p.node.group) return null;
   const key = String(p.node.key ?? p.value ?? "");
   const display = INVOICE_BY_LABEL.get(key) ?? STAGE_TONE[key];
   return (

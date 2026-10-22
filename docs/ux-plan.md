@@ -102,7 +102,7 @@ A calm fintech look: neutral slate surfaces, **one accent (teal)**, high contras
 | `--text-muted` | `#475569` (7.5:1) | `#9AA7B6` (7.6:1) |
 | `--accent` | `#0F766E` (5.5:1 on white) | `#2DD4BF` |
 | `--accent-fg` | `#FFFFFF` | `#04201D` |
-| `--success` | `#15803D` | `#4ADE80` |
+| `--success` | `#166534` | `#4ADE80` |
 | `--warning` | `#B45309` | `#FBBF24` |
 | `--danger` | `#B91C1C` | `#F87171` |
 | `--info` | `#1D4ED8` | `#60A5FA` |

@@ -103,7 +103,7 @@ function PayoutReview({ action, payee, invoice, client, outcome, approve, reject
           <p className="mt-1 text-[13px] text-muted">Once PayPal accepts it, it can't be undone from PaySasa.</p>
         </div>
 
-        <dl className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-2.5">
+        <dl className="grid grid-cols-[6.5rem_1fr] gap-x-3 sm:grid-cols-[8.5rem_1fr] gap-y-2.5">
           <Row label="Recipient">
             {payee ? (
               <>

@@ -22,8 +22,13 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-3 sm:px-4">
-      <Link to="/" aria-label="PaySasa AI home" className="rounded">
-        <Logo />
+      <Link to="/" aria-label="PaySasa AI home" className="shrink-0 rounded">
+        <span className="sm:hidden">
+          <Logo compact />
+        </span>
+        <span className="hidden sm:inline">
+          <Logo />
+        </span>
       </Link>
       <nav aria-label="Main" className="ml-4 hidden items-center gap-1 md:flex">
         {NAV.map((n) => (
@@ -40,19 +45,21 @@ export function Header() {
       </nav>
       <div className="ml-auto flex items-center gap-2">
         {pending > 0 && (
-          <Link to="/approvals" className="inline-flex h-9 items-center gap-2 rounded-full bg-warning-soft px-3 text-[13px] font-semibold text-warning">
+          <Link to="/approvals" className="inline-flex h-9 items-center gap-2 rounded-full bg-warning-soft px-3 text-[13px] font-semibold whitespace-nowrap text-warning">
             <span className="size-2 rounded-full bg-warning" aria-hidden />
-            Needs your approval
+            <span className="hidden sm:inline">Needs your approval</span>
+            <span className="sm:hidden">Approve</span>
             <ApprovalCount n={pending} />
           </Link>
         )}
         <ConnectionIndicator />
         <DM.Root>
-          <DM.Trigger aria-label="Account and navigation menu" className="inline-flex h-9 items-center gap-2 rounded-full border border-border px-1.5 hover:bg-surface-2 md:pr-3">
+          <DM.Trigger className="inline-flex h-9 items-center gap-2 rounded-full border border-border px-1.5 hover:bg-surface-2 md:pr-3">
             <span aria-hidden className="grid size-7 place-items-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent">
               {name.slice(0, 1).toUpperCase() || "?"}
             </span>
-            <span className="hidden max-w-32 truncate text-[13px] md:inline">{name}</span>
+            <span className="sr-only">Menu for </span>
+            <span className="sr-only max-w-32 truncate text-[13px] md:not-sr-only">{name}</span>
             <Menu aria-hidden className="size-4 md:hidden" />
           </DM.Trigger>
           <DM.Portal>
