@@ -1,0 +1,42 @@
+# Render Blueprint for the PaySasa frontend (static site).
+# Create a separate Blueprint on Render with the path set to frontend/render.yaml.
+services:
+  - type: web
+    name: paysasa-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    routes:
+      # Single-page app: let React Router handle every path.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_PAYPAL_MODE
+        value: mock
+      - key: VITE_ENABLE_DEMO
+        value: "true"
+      - key: VITE_APPROVAL_SECOND_CONFIRM_MINOR
+        value: "50000"
+      - key: VITE_AG_GRID_LICENSE_KEY
+        sync: false
