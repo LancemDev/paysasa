@@ -23,7 +23,7 @@ paysasa/
 │       ├── app/errors.py        { "error": { code, message } } envelope
 │       ├── app/money.py         integer minor units, USD/GBP/EUR only
 │       ├── app/transitions.py   the ONLY code that changes a status; writes activity_log in the same tx
-│       ├── app/agent/           Gemini tool-calling loop (run.py), 6 tools (tools.py), prompt, reminder drafter
+│       ├── app/agent/           Claude tool-calling loop (run.py), 6 tools (tools.py), prompt, reminder drafter
 │       ├── app/actions/         approve / reject pending actions (the only place money moves)
 │       ├── app/contacts/        create contact
 │       ├── app/webhooks/        POST /webhooks/paypal, idempotent via webhook_events
@@ -37,7 +37,7 @@ paysasa/
 ```
 
 **Languages and frameworks:** Python 3.12, FastAPI, psycopg 3 (async pool), supabase-py (auth checks only),
-google-genai (Gemini). Postgres is hosted on Supabase. There's no JS anywhere yet. The untracked root
+the Anthropic SDK (Claude; the backend switched from Gemini in PR #2). Postgres is hosted on Supabase. There's no JS anywhere yet. The untracked root
 `package.json`/`package-lock.json` only install the Claude Code CLI and aren't part of the app.
 
 **Entry points:**
@@ -53,7 +53,7 @@ cp .env.example .env     # fill in values
 ```
 DB: run `0001_init.sql` in Supabase, sign up `demo@paysasa.app`, edit Sarah's email in `seed.sql`, then run it.
 
-**Backend env vars (names only):** `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`,
+**Backend env vars (names only):** `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`,
 `LLM_MODEL`, `PAYPAL_ADAPTER` (`mock`|`real`), `MAX_AMOUNT_MINOR`, `ENABLE_DEV_ROUTES`, `CORS_ORIGIN`,
 `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENV`.
 
@@ -92,7 +92,7 @@ plain-text 500, and since `ServerErrorMiddleware` sits outside CORS, the browser
 not a 500. The client must treat a network error on approve as "outcome unknown" (see §6).
 
 **Streaming:** none. There's no SSE or websocket. `POST /api/agent/message` blocks until the whole tool loop has finished
-(up to 6 rounds of Gemini plus PayPal calls), which can take several seconds.
+(up to 6 rounds of Claude plus PayPal calls), which can take several seconds.
 
 **Serialisation details:**
 - Through the API (`action_out`), UUIDs and timestamps are strings, `split_percent` is a string (`"20.00"`) and
@@ -151,10 +151,10 @@ unlocks when this invoice is paid; reminders target it); `pending_actions.payee_
 
 - **Invocation:** `POST /api/agent/message` → `run_agent()`. It inserts an `agent_runs` row (`running`), builds a
   system prompt (today, default currency, allowed currencies, **all the user's contacts**), and replays the last 10
-  *completed* runs as chat history. It then loops: Gemini turn → execute tool calls → feed results back, for at most
+  *completed* runs as chat history. It then loops: Claude turn → execute tool calls → feed results back, for at most
   6 rounds. Finally it stores `reply` and `tool_calls` and sets the status to `completed`. If an exception occurs,
   the status becomes `failed` and the API returns 502.
-- **LLM:** Google Gemini (`google-genai`, default `gemini-2.5-flash`, temperature 0). **There's no PayPal MCP or
+- **LLM:** Anthropic Claude (default `claude-sonnet-5-5`; originally Gemini, switched in PR #2). If Claude ends a turn with neither text nor a tool call, the reply is "I did not do anything with that. Could you rephrase the request?". **There's no PayPal MCP or
   Agent Toolkit.** The tools are custom and call a `PayPalAdapter`.
 - **Tools** (guardrails are enforced in code):
 
@@ -259,7 +259,7 @@ reminder: awaiting_approval ──approve(message?)──▶ executing ──▶
 - `seed.sql` still has a TODO for Sarah's sandbox email.
 
 ## Plan vs code (trusting the code)
-- The brief says PayPal MCP / Agent Toolkit. The code uses a Gemini function-calling loop with 6 custom tools.
+- The brief says PayPal MCP / Agent Toolkit. The code uses a Claude tool-use loop with 6 custom tools.
 - The brief says the agent "creates" the invoice for confirmation. In the code it's **created and sent immediately**,
   and only payouts and reminders are human-gated.
 - The brief's statuses (Awaiting Payment, Paid, Overdue, Draft) map as follows:
