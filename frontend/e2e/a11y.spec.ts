@@ -4,6 +4,7 @@ import { createFakeBackend } from "./fakeBackend";
 
 async function signIn(page: import("@playwright/test").Page) {
   await page.goto("/sign-in");
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Email").fill("demo@paysasa.app");
   await page.getByLabel("Password").fill("correct-horse-battery");
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -18,6 +19,8 @@ for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
     await createFakeBackend(page).install();
 
+    await page.goto("/welcome");
+    expect((await new AxeBuilder({ page }).withTags(wcag).analyze()).violations).toEqual([]);
     await page.goto("/sign-in");
     expect((await new AxeBuilder({ page }).withTags(wcag).analyze()).violations).toEqual([]);
 
@@ -34,6 +37,13 @@ for (const scheme of ["light", "dark"] as const) {
     await page.getByRole("button", { name: "Review payout" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(wcag).include('[role="dialog"]').analyze()).violations).toEqual([]);
+    await page.keyboard.press("Escape");
+
+    // Insights: check our own chrome and custom widgets; AG Studio's internals are its own.
+    await page.goto("/insights");
+    await expect(page.getByText("Needs your approval").first()).toBeVisible({ timeout: 20_000 });
+    const insights = await new AxeBuilder({ page }).withTags(wcag).exclude(".ag-studio, [class*='ag-studio'], .ag-root-wrapper, .ag-charts-wrapper").analyze();
+    expect(insights.violations).toEqual([]);
   });
 }
 
@@ -42,7 +52,7 @@ test("no horizontal page scroll at 360px", async ({ page }, info) => {
   await page.setViewportSize({ width: 360, height: 760 });
   await createFakeBackend(page).install();
   await signIn(page);
-  for (const path of ["/", "/approvals", "/payees", "/settings"]) {
+  for (const path of ["/", "/approvals", "/payees", "/settings", "/welcome"]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(360);

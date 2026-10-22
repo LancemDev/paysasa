@@ -14,7 +14,7 @@ import { useIsWide } from "@/hooks/useMediaQuery";
 import { DEMO_PROMPT } from "@/lib/agent";
 import { env } from "@/lib/env";
 import { formatTotals, totalsByCurrency } from "@/lib/money";
-import { useActions, useActivity, useContactsById, useInvoices, useInvoicesById } from "@/lib/queries";
+import { useActions, useActivity, useContactsById, useInvoices, useInvoicesById, useProfile } from "@/lib/queries";
 import { useWorkspace } from "@/lib/workspace";
 import { ActionCardList, ActivityList, InvoiceCardList } from "./CardLists";
 import { buildActionRows, buildActivityRows, buildInvoiceRows, type ActivityRow } from "./rows";
@@ -41,10 +41,7 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
-      <div>
-        <h1 className="text-[22px] font-semibold">Dashboard</h1>
-        <p className="text-muted">Invoices, payouts and everything PaySasa did for you, updated live.</p>
-      </div>
+      <Greeting />
       <Kpis />
       <FirstRunChecklist />
       {env.enableDemo && <DemoPanel />}
@@ -201,9 +198,9 @@ function Kpis() {
   const loading = invoices.isLoading || actions.isLoading;
 
   const tiles: { label: string; value: string; sub: string; tone?: string; to?: string }[] = [
-    { label: "Awaiting payment", value: formatTotals(totalsByCurrency(awaiting)) || "-", sub: `${awaiting.length} invoice${awaiting.length === 1 ? "" : "s"}` },
-    { label: "Overdue", value: formatTotals(totalsByCurrency(overdue)) || "-", sub: `${overdue.length} invoice${overdue.length === 1 ? "" : "s"}`, tone: overdue.length ? "text-danger" : undefined },
-    { label: "Paid, last 30 days", value: formatTotals(totalsByCurrency(paid)) || "-", sub: `${paid.length} invoice${paid.length === 1 ? "" : "s"}`, tone: paid.length ? "text-success" : undefined },
+    { label: "Awaiting payment", value: formatTotals(totalsByCurrency(awaiting)) || "None yet", sub: `${awaiting.length} invoice${awaiting.length === 1 ? "" : "s"}` },
+    { label: "Overdue", value: formatTotals(totalsByCurrency(overdue)) || "None", sub: `${overdue.length} invoice${overdue.length === 1 ? "" : "s"}`, tone: overdue.length ? "text-danger" : undefined },
+    { label: "Paid, last 30 days", value: formatTotals(totalsByCurrency(paid)) || "None yet", sub: `${paid.length} invoice${paid.length === 1 ? "" : "s"}`, tone: paid.length ? "text-success" : undefined },
     { label: "Needs your approval", value: String(approvals), sub: approvals ? "Review now" : "All clear", tone: approvals ? "text-warning" : undefined, to: "/approvals" },
   ];
   return (
@@ -227,6 +224,36 @@ function Kpis() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function Greeting() {
+  const { data: profile } = useProfile();
+  const invoices = useInvoices();
+  const actions = useActions();
+  const rows = buildInvoiceRows(invoices.data ?? [], new Map(), []);
+  const approvals = (actions.data ?? []).filter((a) => a.status === "awaiting_approval").length;
+  const awaiting = formatTotals(totalsByCurrency(rows.filter((r) => r.status === "awaiting" || r.status === "overdue")));
+  const overdue = rows.filter((r) => r.status === "overdue").length;
+  const hour = new Date().getHours();
+  const hello = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const parts = [
+    approvals ? `${approvals} payout${approvals === 1 ? "" : "s"} need${approvals === 1 ? "s" : ""} your approval` : null,
+    awaiting ? `${awaiting} awaiting payment` : null,
+    overdue ? `${overdue} overdue` : null,
+  ].filter(Boolean);
+  return (
+    <div>
+      {/* "Dashboard" stays the page heading for screen readers and tests; the greeting is the visible title. */}
+      <h1 className="text-[22px] font-semibold">
+        <span className="sr-only">Dashboard: </span>
+        {hello}
+        {profile?.display_name ? `, ${profile.display_name}` : ""}
+      </h1>
+      <p className="text-muted" aria-live="polite">
+        {invoices.isLoading ? "Loading your money…" : parts.length ? `${parts.join(" · ")}.` : "You're all caught up. Ask PaySasa to send an invoice."}
+      </p>
     </div>
   );
 }

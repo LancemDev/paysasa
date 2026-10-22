@@ -7,6 +7,8 @@ import { usePendingApprovals, useProfile } from "@/lib/queries";
 import { ConnectionIndicator } from "./ConnectionIndicator";
 import { Logo } from "./Logo";
 
+const prefetchInsights = () => void import("@/features/insights/InsightsPage");
+
 const NAV = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/insights", label: "Insights" },
@@ -37,6 +39,9 @@ export function Header() {
             key={n.to}
             to={n.to}
             end={n.end}
+            // Start fetching AG Studio as soon as the user shows intent, so Insights opens quickly.
+            onMouseEnter={n.to === "/insights" ? prefetchInsights : undefined}
+            onFocus={n.to === "/insights" ? prefetchInsights : undefined}
             className={({ isActive }) => cn("inline-flex h-9 items-center gap-2 rounded-[var(--radius-input)] px-3 font-medium", isActive ? "bg-surface-2 text-fg" : "text-muted hover:text-fg")}
           >
             {n.label}

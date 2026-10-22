@@ -17,7 +17,7 @@ export default defineConfig({
     // The e2e build talks to fake hosts that the test intercepts in the browser (see e2e/fakeBackend.ts).
     command: `npx vite --port ${PORT} --strictPort`,
     port: PORT,
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     env: {
       VITE_API_BASE_URL: "http://api.paysasa.test",
       VITE_SUPABASE_URL: "http://supabase.paysasa.test",

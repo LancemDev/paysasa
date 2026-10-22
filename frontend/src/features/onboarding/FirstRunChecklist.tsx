@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Check, Circle, Loader2, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -8,107 +8,139 @@ import { useAgent } from "@/features/agent/AgentProvider";
 import { DEMO_PROMPT } from "@/lib/agent";
 import { api } from "@/lib/api";
 import { env } from "@/lib/env";
-import { useContacts, useInvoices } from "@/lib/queries";
+import { useActions, useContacts, useInvoices } from "@/lib/queries";
 import { useSettings } from "@/lib/settings";
+import { useWorkspace } from "@/lib/workspace";
 
-type State = "done" | "todo" | "checking" | "failed";
+interface Step {
+  title: string;
+  done: boolean;
+  /** Shown only on the current (first unfinished) step. */
+  next: ReactNode;
+}
 
-/** Guided first run: is the backend up, which PayPal mode, add a payee, try the demo prompt. */
+/**
+ * "Your payment cycle": the user story as a live progress tracker, derived from real data. It shows one next
+ * action at a time, which doubles as first-run onboarding and as the spine of the demo.
+ */
 export function FirstRunChecklist() {
   const [settings, update] = useSettings();
   const { prefill } = useAgent();
+  const { openApproval } = useWorkspace();
   const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: 1, staleTime: 60_000 });
-  const contacts = useContacts();
-  const invoices = useInvoices();
+  const contacts = useContacts().data ?? [];
+  const invoices = useInvoices().data ?? [];
+  const actions = useActions().data ?? [];
   if (settings.onboardingDismissed) return null;
 
-  const hasPayee = (contacts.data ?? []).some((c) => c.role === "contractor");
-  const hasInvoice = (invoices.data ?? []).length > 0;
-  const steps: { state: State; title: string; body: ReactNode }[] = [
+  const payouts = actions.filter((a) => a.type === "payout");
+  const awaiting = payouts.find((a) => a.status === "awaiting_approval");
+  const steps: Step[] = [
     {
-      state: health.isLoading ? "checking" : health.isSuccess ? "done" : "failed",
-      title: health.isError ? "PaySasa server isn't reachable" : "PaySasa server connected",
-      body: health.isError ? (
+      title: "Connect",
+      done: health.isSuccess && contacts.some((c) => c.role === "contractor"),
+      next: health.isError ? (
         <>
-          Check that the backend is running and <code>VITE_API_BASE_URL</code> is right.{" "}
+          PaySasa's server isn't reachable.{" "}
           <button type="button" className="text-accent underline" onClick={() => health.refetch()}>
             Check again
           </button>
         </>
       ) : (
-        "Invoices, approvals and the assistant are available."
-      ),
-    },
-    {
-      state: "done",
-      title: env.paypalMode === "sandbox" ? "PayPal sandbox mode" : "Mock PayPal mode",
-      body:
-        env.paypalMode === "sandbox"
-          ? "Invoices and payouts use PayPal's sandbox. No real money moves."
-          : "PayPal calls are simulated by the backend. No real money moves.",
-    },
-    {
-      state: hasPayee ? "done" : "todo",
-      title: "Add a payee",
-      body: hasPayee ? (
-        "You have someone to pay."
-      ) : (
         <>
-          Add a contractor (e.g. Sarah, “my editor”) on the{" "}
+          Add someone you pay on the{" "}
           <Link className="text-accent underline" to="/payees">
             Payees
           </Link>{" "}
-          page.
+          page, e.g. Sarah, “my editor”.
         </>
       ),
     },
     {
-      state: hasInvoice ? "done" : "todo",
-      title: "Try the demo prompt",
-      body: hasInvoice ? (
-        "Your first invoice is out."
-      ) : (
-        <Button size="sm" variant="primary" className="mt-1" onClick={() => prefill(DEMO_PROMPT)}>
+      title: "Invoice sent",
+      done: invoices.some((i) => i.status === "sent" || i.status === "paid"),
+      next: (
+        <Button size="sm" variant="primary" onClick={() => prefill(DEMO_PROMPT)}>
           Fill in Kwame's request
         </Button>
       ),
     },
+    {
+      title: "Payout scheduled",
+      done: payouts.length > 0,
+      next: "Ask PaySasa to pay a collaborator a share once the invoice is paid.",
+    },
+    {
+      title: "Client paid",
+      done: invoices.some((i) => i.status === "paid" && payouts.some((p) => p.trigger_invoice_id === i.id)),
+      next: env.enableDemo ? "Waiting for the client. In the demo, use Demo helper → Mark as paid." : "Waiting for your client to pay through PayPal.",
+    },
+    {
+      title: "You approved",
+      done: payouts.some((a) => ["executing", "submitted", "succeeded"].includes(a.status)),
+      next: awaiting ? (
+        <Button size="sm" variant="primary" onClick={() => openApproval(awaiting.id)}>
+          Review the payout
+        </Button>
+      ) : (
+        "A payout is ready for your approval."
+      ),
+    },
+    {
+      title: "Sent via PayPal",
+      done: payouts.some((a) => a.status === "submitted" || a.status === "succeeded"),
+      next: "PayPal is processing the payout.",
+    },
   ];
-  const done = steps.filter((s) => s.state === "done").length;
+  const current = steps.findIndex((s) => !s.done);
+  const allDone = current === -1;
 
   return (
-    <section aria-labelledby="onboard-h" className="rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-1">
+    <section aria-labelledby="cycle-h" className="rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-1">
       <div className="flex items-start gap-2">
-        <div className="flex-1">
-          <h2 id="onboard-h" className="font-semibold">
-            Get started <span className="font-normal text-muted">({done} of {steps.length} done)</span>
-          </h2>
-        </div>
-        <button type="button" aria-label="Hide getting started" onClick={() => update({ onboardingDismissed: true })} className="rounded p-1 text-muted hover:bg-surface-2">
+        <h2 id="cycle-h" className="flex-1 font-semibold">
+          Your payment cycle{" "}
+          <span className="font-normal text-muted">
+            ({steps.filter((s) => s.done).length} of {steps.length})
+          </span>
+        </h2>
+        <button type="button" aria-label="Hide payment cycle" onClick={() => update({ onboardingDismissed: true })} className="rounded p-1 text-muted hover:bg-surface-2">
           <X aria-hidden className="size-4" />
         </button>
       </div>
-      <ol className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map((s) => (
-          <li key={s.title} className="flex gap-2">
-            <StepIcon state={s.state} />
-            <div className="min-w-0 text-[13px]">
-              <p className={cn("font-medium", s.state === "failed" && "text-danger")}>{s.title}</p>
-              <div className="text-muted">{s.body}</div>
+      <ol className="mt-3 grid grid-cols-3 gap-y-3 sm:grid-cols-6">
+        {steps.map((s, i) => (
+          <li key={s.title} aria-current={i === current ? "step" : undefined} className="flex flex-col items-center gap-1.5 text-center">
+            <div className="flex w-full items-center">
+              <span className={cn("h-0.5 flex-1", i === 0 ? "invisible" : steps[i - 1].done ? "bg-accent" : "bg-border")} />
+              <span
+                className={cn(
+                  "grid size-7 shrink-0 place-items-center rounded-full border-2 text-xs font-semibold",
+                  s.done ? "border-accent bg-accent text-accent-fg" : i === current ? "border-accent text-accent" : "border-border text-muted",
+                )}
+              >
+                {s.done ? <Check aria-hidden className="size-4" /> : i + 1}
+              </span>
+              <span className={cn("h-0.5 flex-1", i === steps.length - 1 ? "invisible" : s.done ? "bg-accent" : "bg-border")} />
             </div>
+            <span className={cn("text-xs", i === current ? "font-semibold" : "text-muted")}>
+              {s.title}
+              <span className="sr-only">{s.done ? " (done)" : i === current ? " (current step)" : " (not started)"}</span>
+            </span>
           </li>
         ))}
       </ol>
+      <div className="mt-3 flex min-h-9 flex-wrap items-center gap-2 rounded-[var(--radius-input)] bg-surface-2 px-3 py-2 text-[13px]" aria-live="polite">
+        {allDone ? (
+          <span className="flex items-center gap-2">
+            <Check aria-hidden className="size-4 text-success" /> Full cycle complete: invoiced, paid, approved and sent via PayPal.
+          </span>
+        ) : (
+          <>
+            <span className="font-semibold">Next:</span> {steps[current].next}
+          </>
+        )}
+      </div>
     </section>
-  );
-}
-
-function StepIcon({ state }: { state: State }) {
-  const label = { done: "Done", todo: "To do", checking: "Checking", failed: "Needs attention" }[state];
-  return (
-    <span className={cn("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full", state === "done" && "bg-success-soft text-success", state === "failed" && "bg-danger-soft text-danger", state === "todo" && "text-muted")}>
-      {state === "done" ? <Check aria-hidden className="size-3.5" /> : state === "checking" ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : state === "failed" ? <X aria-hidden className="size-3.5" /> : <Circle aria-hidden className="size-4" />}
-      <span className="sr-only">{label}</span>
-    </span>
   );
 }

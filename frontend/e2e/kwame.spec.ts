@@ -6,10 +6,12 @@ test("Kwame: prompt → invoice + locked payout → client pays → approve payo
   const backend = createFakeBackend(page);
   await backend.install();
 
-  // Sign in
+  // Landing page → sign in
   await page.goto("/");
+  await expect(page).toHaveURL(/welcome/);
+  await expect(page.getByText(/No real money moves/).first()).toBeVisible();
+  await page.getByRole("link", { name: "Open the live demo" }).click();
   await expect(page).toHaveURL(/sign-in/);
-  await expect(page.getByText("No real money moves")).toBeVisible();
   await page.getByLabel("Email").fill("demo@paysasa.app");
   await page.getByLabel("Password").fill("correct-horse-battery");
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -52,4 +54,9 @@ test("Kwame: prompt → invoice + locked payout → client pays → approve payo
   await expect(dialog.getByText("Paid out", { exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Done" }).click();
   await expect(page.getByText("Nothing needs your approval")).toBeVisible();
+
+  // The payment cycle tracker reflects the whole story
+  await page.goto("/");
+  await expect(page.getByText(/Your payment cycle/)).toBeVisible();
+  await expect(page.getByText(/Sent via PayPal \(done\)/)).toBeAttached();
 });
