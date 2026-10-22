@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
@@ -11,7 +12,11 @@ import { PayeesPage } from "@/features/payees/PayeesPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { ApiError } from "@/lib/api";
 import { useApplyTheme } from "@/lib/settings";
+import { FullPageSkeleton } from "@/components/ui/Skeleton";
 import { ResetPasswordPage, SignInPage, SignUpPage, UpdatePasswordPage } from "@/pages/AuthPages";
+
+// AG Studio is large; it only loads when someone opens Insights.
+const InsightsPage = lazy(() => import("@/features/insights/InsightsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +45,14 @@ export function App() {
                 <Route element={<ProtectedRoute />}>
                   <Route element={<AppShell />}>
                     <Route index element={<Dashboard />} />
+                    <Route
+                      path="/insights"
+                      element={
+                        <Suspense fallback={<FullPageSkeleton />}>
+                          <InsightsPage />
+                        </Suspense>
+                      }
+                    />
                     <Route path="/approvals" element={<ApprovalsPage />} />
                     <Route path="/payees" element={<PayeesPage />} />
                     <Route path="/settings" element={<SettingsPage />} />

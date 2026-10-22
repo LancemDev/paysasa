@@ -16,6 +16,7 @@ export const env = {
   enableDemo: raw.VITE_ENABLE_DEMO === "true",
   secondConfirmMinor: int(raw.VITE_APPROVAL_SECOND_CONFIRM_MINOR, 50_000),
   agGridLicenseKey: raw.VITE_AG_GRID_LICENSE_KEY ?? "",
+  agStudioLicenseKey: raw.VITE_AG_STUDIO_LICENSE_KEY ?? "",
 };
 
 export const missingEnv: string[] = [
