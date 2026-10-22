@@ -15,10 +15,10 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: GEMINI_API_KEY
+      - key: ANTHROPIC_API_KEY
         sync: false
       - key: LLM_MODEL
-        sync: false
+        value: claude-sonnet-5-5
       - key: PAYPAL_ADAPTER
         value: mock
       - key: MAX_AMOUNT_MINOR
@@ -48,7 +48,7 @@ services:
         value: 3.12.10
       - key: DATABASE_URL
         sync: false
-      - key: GEMINI_API_KEY
+      - key: ANTHROPIC_API_KEY
         sync: false
       - key: LLM_MODEL
-        sync: false
+        value: claude-sonnet-5-5
