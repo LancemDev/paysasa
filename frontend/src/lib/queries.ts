@@ -1,20 +1,12 @@
-import { useQuery, type QueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { ActivityLogEntry, AgentRun, Contact, Invoice, PendingAction, Profile, Uuid } from "@/types/api";
 import { useAuth } from "@/auth/AuthProvider";
+import { qk } from "./queryKeys";
 import { usePollInterval } from "./realtime";
 import { supabase } from "./supabase";
 
-/** Dashboard reads go straight to Supabase (RLS: own rows only). Writes go through the FastAPI backend. */
-export const qk = {
-  invoices: ["invoices"] as const,
-  actions: ["actions"] as const,
-  contacts: ["contacts"] as const,
-  activity: ["activity"] as const,
-  profile: ["profile"] as const,
-  agentRuns: ["agentRuns"] as const,
-  agentRun: (id: Uuid) => ["agentRun", id] as const,
-};
+export { findInCache, qk, upsertInCache } from "./queryKeys";
 
 export class ReadError extends Error {
   constructor(what: string) {
@@ -100,29 +92,4 @@ export function usePendingApprovals() {
         .sort((a, b) => a.created_at.localeCompare(b.created_at)),
     [data],
   );
-}
-
-// --- cache helpers used by realtime and mutations ------------------------------
-
-type Row = { id: string | number; created_at: string };
-
-/** Insert or replace a row in a list query, keeping newest-first order. Returns the previous row, if any. */
-export function upsertInCache<T extends Row>(qc: QueryClient, key: readonly unknown[], row: T): T | undefined {
-  let previous: T | undefined;
-  qc.setQueryData<T[]>(key, (old) => {
-    if (!old) return old; // not loaded yet; the initial fetch will include it
-    const idx = old.findIndex((r) => r.id === row.id);
-    if (idx >= 0) {
-      previous = old[idx];
-      const next = old.slice();
-      next[idx] = { ...old[idx], ...row };
-      return next;
-    }
-    return [row, ...old].sort((a, b) => b.created_at.localeCompare(a.created_at));
-  });
-  return previous;
-}
-
-export function findInCache<T extends Row>(qc: QueryClient, key: readonly unknown[], id: T["id"]): T | undefined {
-  return qc.getQueryData<T[]>(key)?.find((r) => r.id === id);
 }

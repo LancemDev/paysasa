@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ActivityLogEntry, Contact, Invoice, PendingAction, RealtimeTable } from "@/types/api";
 import { useAuth } from "@/auth/AuthProvider";
-import { qk, upsertInCache } from "./queries";
+import { qk, upsertInCache } from "./queryKeys";
 import { supabase } from "./supabase";
 
 export type ConnectionStatus = "connecting" | "live" | "polling" | "offline";
