@@ -17,6 +17,8 @@ export const env = {
   secondConfirmMinor: int(raw.VITE_APPROVAL_SECOND_CONFIRM_MINOR, 50_000),
   agGridLicenseKey: raw.VITE_AG_GRID_LICENSE_KEY ?? "",
   agStudioLicenseKey: raw.VITE_AG_STUDIO_LICENSE_KEY ?? "",
+  /** Optional sign-in hint for judges, e.g. "demo@paysasa.app / <password>". Only for sandbox demo accounts. */
+  demoLoginHint: raw.VITE_DEMO_LOGIN_HINT ?? "",
 };
 
 export const missingEnv: string[] = [

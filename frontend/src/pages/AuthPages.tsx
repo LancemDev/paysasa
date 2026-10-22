@@ -5,6 +5,7 @@ import { TextField } from "@/components/ui/Field";
 import { Logo } from "@/components/layout/Logo";
 import { ModeBanner } from "@/components/layout/ModeBanner";
 import { useAuth } from "@/auth/AuthProvider";
+import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
 function friendlyAuthError(message: string): string {
@@ -23,9 +24,9 @@ function AuthLayout({ title, subtitle, children, footer }: { title: string; subt
       <ModeBanner />
       <main className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-sm">
-          <div className="mb-6 flex justify-center">
+          <Link to="/welcome" className="mb-6 flex justify-center" aria-label="PaySasa AI home">
             <Logo />
-          </div>
+          </Link>
           <div className="rounded-[var(--radius-sheet)] border border-border bg-surface p-6 shadow-1">
             <h1 className="text-xl font-semibold">{title}</h1>
             {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
@@ -72,6 +73,11 @@ export function SignInPage() {
       {expired && (
         <p role="status" className="mb-4 rounded-[var(--radius-input)] bg-warning-soft p-3 text-[13px]">
           Your session expired. Please sign in again.
+        </p>
+      )}
+      {env.demoLoginHint && (
+        <p className="mb-4 rounded-[var(--radius-input)] bg-accent-soft p-3 text-[13px]">
+          Demo account (PayPal sandbox): <code>{env.demoLoginHint}</code>
         </p>
       )}
       <form onSubmit={submit} className="flex flex-col gap-4">

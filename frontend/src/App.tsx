@@ -13,6 +13,7 @@ import { SettingsPage } from "@/features/settings/SettingsPage";
 import { ApiError } from "@/lib/api";
 import { useApplyTheme } from "@/lib/settings";
 import { FullPageSkeleton } from "@/components/ui/Skeleton";
+import { LandingPage } from "@/pages/LandingPage";
 import { ResetPasswordPage, SignInPage, SignUpPage, UpdatePasswordPage } from "@/pages/AuthPages";
 
 // AG Studio is large; it only loads when someone opens Insights.
@@ -38,6 +39,7 @@ export function App() {
           <BrowserRouter>
             <AuthProvider>
               <Routes>
+                <Route path="/welcome" element={<LandingPage />} />
                 <Route path="/sign-in" element={<SignInPage />} />
                 <Route path="/sign-up" element={<SignUpPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
