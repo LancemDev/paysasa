@@ -32,6 +32,8 @@ backend's `CORS_ORIGIN`.
 | `VITE_ENABLE_DEMO` | no | `true` shows the labelled Demo helper (needs backend `ENABLE_DEV_ROUTES=true`) |
 | `VITE_APPROVAL_SECOND_CONFIRM_MINOR` | no | Payouts at or above this many minor units need a second confirmation (default `50000` = 500.00). Users can override it in Settings. |
 | `VITE_AG_GRID_LICENSE_KEY` | no | AG Grid Enterprise key (row grouping and aggregation). Without it, AG Grid shows a trial watermark and a console notice. |
+| `VITE_AG_STUDIO_LICENSE_KEY` | no | AG Studio key for the Insights page (the hackathon partner offers a 45-day trial). |
+| `VITE_DEMO_LOGIN_HINT` | no | Sandbox demo login shown on the landing and sign-in pages for judges, e.g. `demo@paysasa.app / <password>`. The value is public, so only use sandbox demo credentials. |
 
 If a required variable is missing, the app shows a "not configured" screen instead of crashing.
 
@@ -74,6 +76,29 @@ The Blueprint rewrites every path to `index.html` so React Router works, and cac
 | 5. Invoice shows Paid; payout asks for approval | The invoice moves to the **Paid** group. The payout moves to **Needs your approval**, and the header badge and Approvals queue show the count. |
 | 6. Kwame approves; the backend executes the payout | The **Approve payout** modal says "This will send $240.00 USD to Sarah via PayPal" and shows the recipient, amount, fees note, triggering invoice and who proposed it. It's guarded against double submits and asks for a second confirmation above the threshold. After approval it shows **Submitted to PayPal** with the batch ID, and only says **Paid out** once PayPal confirms. |
 
+## Insights (AG Studio)
+
+`/insights` is a self-serve dashboard built with [AG Studio](https://www.ag-grid.com/studio/), over the same live data
+as the grids. It loads lazily, and is prefetched when the user hovers or focuses the nav link.
+
+- **Data model** (`features/insights/studioData.ts`): contacts, invoices, open receivables, payouts and the audit log,
+  with relationships and a calendar. **Money is split into one field per currency** (e.g. `invoicedUSD`,
+  `invoicedGBP`), each formatted in its own currency, so no widget can add different currencies together.
+- **Default report** (`studioReport.ts`) has three pages:
+  - Cash flow: KPIs with sparklines, invoiced vs collected by month, aging, top clients, a per-currency pivot.
+  - Payouts & approvals.
+  - Agent audit trail.
+
+  Charts use one y-axis and a categorical palette that passes the CVD validator in both themes.
+- **Custom widgets** (`widgets/`):
+  - **Approval queue**: lists live pending approvals. "Review" opens PaySasa's real approval modal.
+  - **Payout guardrail pipeline**: shows Locked → Needs approval → With PayPal → Paid out, with per-currency totals.
+- **Customise** to drag, resize and add widgets. **Save layout** stores the layout on this device.
+- **Include sample history** (demo builds only) adds a clearly labelled, deterministic six-month dataset. It's never
+  sent to the backend, so analytics have something to show on a fresh sandbox account.
+- **Not yet built:** AG Studio's AI assistant. It needs an LLM key held on a server, which means a backend proxy
+  endpoint (see `docs/frontend-report.md`).
+
 ## Code map
 
 ```
@@ -89,5 +114,7 @@ src/
   features/agent/       chat panel, step trace, action cards
   features/dashboard/   AG Grid views, mobile card lists, invoice drawer
   features/approvals/   approval modal, decision hook, approvals queue
+  features/insights/    AG Studio data model, default report, theme, custom widgets
   features/{payees,settings,onboarding,demo}/
+  pages/LandingPage.tsx public landing page for judges and new users
 ```

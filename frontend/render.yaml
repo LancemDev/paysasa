@@ -40,3 +40,7 @@ services:
         value: "50000"
       - key: VITE_AG_GRID_LICENSE_KEY
         sync: false
+      - key: VITE_AG_STUDIO_LICENSE_KEY
+        sync: false
+      - key: VITE_DEMO_LOGIN_HINT
+        sync: false

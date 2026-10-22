@@ -132,3 +132,66 @@ Edge cases:
 - [ ] Demo helper → Run overdue check (needs an overdue invoice). The reminder draft appears; edit it and send it, or discard it.
 - [ ] Mobile (real phone or DevTools at 360px): Ask PaySasa opens as a sheet, cards replace grids, and there's no sideways scroll.
 - [ ] Toggle dark mode (OS or Settings). The grids, badges and modal stay readable.
+
+---
+
+# Round 2: optimising for the hackathon judging
+
+Sources: the hackathon page, PayPal's announcement, AG Grid's partner post, and the official PayPal + AG Studio
+boilerplate. Devpost blocks automated fetches, so the judging details below come from a participant's copy of the
+rules (aaravbodla/PAYPAL-AI-HACKATHON). **Confirm them on Devpost.**
+
+**How it's judged:**
+- **Stage 1 (pass/fail):** the project fits the theme and meaningfully uses PayPal and AI.
+- **Stage 2:** five equally weighted criteria: Technological Implementation, Design, Potential Impact,
+  Innovation, Presentation. Ties break in that order.
+- **Award limit:** at most one Grand Prize or Honorable Mention, **plus one** sponsor prize.
+
+**The AG sponsor prize is "Best Use of AG Studio"** ($5k / $2k / 3×$1k), not plain AG Grid. AG Grid's guidance
+emphasises dashboard polish, custom widgets, theming and layout, and agents that build dashboards.
+
+## What changed in this round
+
+| Criterion / prize | Change |
+|---|---|
+| **AG Studio prize** | New **Insights** page: a self-serve AG Studio dashboard over live PaySasa data, a three-page default report, two **custom widgets** (a live approval queue that opens the real approval modal, and a payout guardrail pipeline), a theme built from our tokens, save and customise, and per-currency fields so no widget can mix currencies. |
+| **Design** (complete, coherent product) | Public **landing page** covering problem, audience, value, the six-step loop, guardrails and the stack. A **"Your payment cycle"** tracker shows the story from live data with one next action. A personal greeting with a one-line status. The theme is applied before first paint, so there's no flash. |
+| **Presentation / Best Demo Delivery** | `docs/demo-script.md`: a timed 2:50 script mapped to the criteria. An optional judge sign-in hint (`VITE_DEMO_LOGIN_HINT`). A labelled sample-history toggle so Insights isn't empty on a fresh account. |
+| **Potential impact** | The landing page names the audience (African freelancers billing abroad) and the concrete problem. |
+| **Tech implementation** | The AG Studio data model has unit tests. E2E now covers landing → sign-in. axe covers the landing and Insights pages. Studio is lazy-loaded and prefetched on intent. |
+
+**Verified:** 42 unit/component tests pass. Playwright passes: the Kwame story on desktop and mobile, axe WCAG
+A/AA (light and dark) on landing, sign-in, dashboard, the approval dialog and Insights (our own UI; AG's internals
+are excluded), and no sideways scroll at 360px. I checked the screenshots of Insights, the landing page and the
+dashboard visually.
+
+**Bundle:** the first load is unchanged at about 160 kB gzip. AG Studio is about 1.1 MB gzip, loaded only on
+Insights.
+
+## Submission blockers and asks
+
+1. **The repo has no LICENSE file.** The rules require an open-source licence that's visible in the repo's About
+   area. This is the team's decision (MIT is common), so I haven't added one.
+2. **Licence keys:** request the AG Studio 45-day trial from the partner, and an AG Grid key. Without them the
+   demo video shows watermarks.
+3. **Demo video:** YouTube, public, under 3:00. Use `docs/demo-script.md`.
+4. **A hosted demo URL plus sandbox test credentials,** or clear run instructions. Render static site steps are
+   in `frontend/README.md`.
+
+## Backend requests (owned by the backend teammate)
+
+Everything from round 1 (G1-G10) still applies. One new item:
+
+- **AG Studio AI assistant ("agents that build dashboards"):** add `POST /api/ai/studio`, which forwards a request
+  to the LLM with the server-held key, streams the response back, and requires auth and rate limits. AG Studio's
+  assistant then connects to it through an `AgLlmAdapter`, the AG-UI-style event protocol in
+  `ag-studio/dist/types/api/ai`. I didn't build the frontend adapter, because without an endpoint it can't be
+  tested end to end. It's the single biggest remaining lever for the AG Studio prize.
+
+## Note on `morluto/rea`
+
+The `rea` repository linked in the request is "Reverse Engineer Anything": an MCP server and CLI for taking apart
+binaries and apps. It contains no frontend or UX guidance, and its setup registers itself into the user's agent
+configuration. I didn't install or use it. The best-practice sources used instead were the hackathon's official
+materials and AG Grid's AG Studio docs and boilerplate (read for API usage only; the boilerplate has no licence,
+so no code was copied).
