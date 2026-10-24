@@ -29,7 +29,7 @@ backend's `CORS_ORIGIN`.
 | `VITE_SUPABASE_URL` | yes | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | yes | Supabase **public anon** key. Row-level security protects data. Never use the service-role key here. |
 | `VITE_PAYPAL_MODE` | no | `mock` (default) or `sandbox`. Must match the backend's `PAYPAL_ADAPTER`; it controls the banner wording and the sandbox invoice link. |
-| `VITE_ENABLE_DEMO` | no | `true` shows the labelled Demo helper (needs backend `ENABLE_DEV_ROUTES=true`) |
+| `VITE_ENABLE_DEMO` | no | `true` shows the labelled Demo helper (needs backend `ENABLE_DEV_ROUTES=true`). Default `false`; enable only for a rehearsal deployment. |
 | `VITE_APPROVAL_SECOND_CONFIRM_MINOR` | no | Payouts at or above this many minor units need a second confirmation (default `50000` = 500.00). Users can override it in Settings. |
 | `VITE_AG_GRID_LICENSE_KEY` | no | AG Grid Enterprise key (row grouping and aggregation). Without it, AG Grid shows a trial watermark and a console notice. |
 | `VITE_AG_STUDIO_LICENSE_KEY` | no | AG Studio key for the Insights page (the hackathon partner offers a 45-day trial). |
@@ -41,6 +41,18 @@ If a required variable is missing, the app shows a "not configured" screen inste
 
 In Supabase → Authentication → URL configuration, add your site URL (`http://localhost:3000` and the Render URL) and
 the redirect URLs `<site>/` and `<site>/update-password`. These are used for sign-up confirmation and password reset.
+
+### Security notes
+
+- Only the Supabase **anon** key belongs in the frontend. The service-role key stays in the backend.
+- The React Query cache is cleared on sign-in and sign-out, so one account's invoices, contacts and agent history
+  cannot be shown to the next account on a shared device.
+- Post-login redirects accept in-app paths only; absolute and protocol-relative URLs are rejected.
+- `render.yaml` sends `X-Frame-Options: DENY`, a framing/base/object CSP, `Permissions-Policy`, HSTS and
+  `X-Content-Type-Options`. A full `script-src` CSP is not possible while AG Grid needs `eval()`.
+- The Demo helper is off in the production blueprint. Enable `VITE_ENABLE_DEMO` and the backend's
+  `ENABLE_DEV_ROUTES` together only for a rehearsal deployment; the backend still requires auth and owner-scopes
+  those routes.
 
 ## Scripts
 

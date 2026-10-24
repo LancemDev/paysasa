@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 
 from app.paypal_contract import PayPalError
 from tests.conftest import auth, fetchall, fetchone
@@ -33,6 +34,22 @@ async def test_two_simultaneous_approves_send_one_payout(client, pool, user, ada
     assert sorted([r1.status_code, r2.status_code]) == [200, 409]
     assert len(adapter.payouts) == 1
     assert [c[0] for c in adapter.calls].count("execute_payout") == 1
+
+
+async def test_approve_rechecks_the_invoice_total(client, pool, user, adapter):
+    s = await awaiting_payout(pool, adapter, user)
+    # Simulate a legacy/manually inserted payout that already commits the whole invoice.
+    async with pool.connection() as conn:
+        await conn.execute(
+            """insert into pending_actions (owner_id, type, status, trigger_invoice_id, payee_contact_id,
+                   amount_minor, currency, summary, idempotency_key)
+               values (%s, 'payout', 'awaiting_approval', %s, %s, 120000, 'USD', 'Extra payout', %s)""",
+            (user["id"], s["invoice_id"], user["sarah"], f"payout-{uuid.uuid4().hex}"),
+        )
+    r = await client.post(f"/api/actions/{s['payout_id']}/approve", headers=auth(user))
+    assert r.status_code == 409 and "exceed" in r.json()["error"]["message"]
+    assert adapter.payouts == {}
+    assert await status(pool, "pending_actions", s["payout_id"]) == "awaiting_approval"
 
 
 async def test_cannot_approve_locked_or_twice(client, pool, user, adapter):

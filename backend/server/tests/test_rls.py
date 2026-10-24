@@ -7,19 +7,27 @@ async def test_users_read_only_their_rows(pool, user, other_user, adapter):
     await sent_invoice_with_payout(pool, adapter, other_user)
     for who in (user, other_user):
         async with pool.connection() as conn:
+            await conn.execute("insert into agent_runs (owner_id, user_message) values (%s, 'hi')", (who["id"],))
+            await conn.execute(
+                "insert into activity_log (owner_id, actor, event, message) values (%s, 'system', 'test', 'test')",
+                (who["id"],),
+            )
+    for who in (user, other_user):
+        async with pool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("set local role authenticated")
                 await conn.execute("select set_config('request.jwt.claim.sub', %s, true)", (str(who["id"]),))
-                for table in ("invoices", "pending_actions", "contacts", "profiles"):
+                for table in ("invoices", "pending_actions", "contacts", "profiles", "agent_runs", "activity_log"):
                     cur = await conn.execute(f"select * from {table}")
                     rows = await cur.fetchall()
                     owner_col = "id" if table == "profiles" else "owner_id"
                     assert rows and all(r[owner_col] == who["id"] for r in rows), table
                 cur = await conn.execute("select count(*) as n from webhook_events")
                 assert (await cur.fetchone())["n"] == 0
-                # Writes are server-only
-                cur = await conn.execute("select has_table_privilege('authenticated', 'invoices', 'UPDATE') as w")
-                assert (await cur.fetchone())["w"] is False
+                # Writes are server-only on every user table
+                for table in ("invoices", "pending_actions", "contacts", "profiles", "agent_runs", "activity_log"):
+                    cur = await conn.execute("select has_table_privilege('authenticated', %s, 'UPDATE') as w", (table,))
+                    assert (await cur.fetchone())["w"] is False, table
 
 
 async def test_realtime_publication(pool):

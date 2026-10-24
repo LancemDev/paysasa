@@ -230,7 +230,9 @@ export type ApiErrorCode =
   | "http_error"
   | "invalid_request"
   | "conflict"
-  | "agent_failed";
+  | "agent_failed"
+  | "rate_limited"
+  | "payload_too_large";
 
 /** Every handled error: { error: { code, message } }. Unhandled 500s are plain text (and lack CORS headers). */
 export interface ApiErrorBody {

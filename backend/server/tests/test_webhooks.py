@@ -1,4 +1,5 @@
-from tests.conftest import fetchall, fetchone
+from app.paypal_mock import MockPayPalAdapter
+from tests.conftest import auth, fetchall, fetchone
 from tests.helpers import deliver, event, sent_invoice_with_payout, status
 
 
@@ -115,9 +116,32 @@ async def test_malformed_body(client):
     assert r.status_code == 400
 
 
+async def test_mock_webhook_rejects_when_no_secret_is_configured():
+    # The production default: no secret means no mock webhook can ever be verified.
+    adapter = MockPayPalAdapter()
+    assert await adapter.verify_webhook({"paypal-transmission-sig": "mock-valid-signature"}, b"{}") is False
+
+
+async def test_oversized_webhook_is_rejected(client):
+    r = await client.post(
+        "/webhooks/paypal",
+        content=b"x" * (1_048_576 + 1),
+        headers={"paypal-transmission-sig": "mock-valid-signature", "content-type": "application/json"},
+    )
+    assert r.status_code == 413
+
+
 async def test_dev_simulate_paid(client, pool, user, adapter):
     s = await sent_invoice_with_payout(pool, adapter, user)
-    r = await client.post(f"/dev/simulate-paid/{s['invoice_id']}")
+    r = await client.post(f"/dev/simulate-paid/{s['invoice_id']}", headers=auth(user))
     assert r.status_code == 200 and r.json()["invoice"]["status"] == "paid"
     assert await status(pool, "pending_actions", s["payout_id"]) == "awaiting_approval"
-    assert (await client.post(f"/dev/simulate-paid/{s['invoice_id']}")).status_code == 409
+    assert (await client.post(f"/dev/simulate-paid/{s['invoice_id']}", headers=auth(user))).status_code == 409
+
+
+async def test_dev_simulate_paid_requires_auth_and_owner(client, pool, user, other_user, adapter):
+    s = await sent_invoice_with_payout(pool, adapter, user)
+    assert (await client.post(f"/dev/simulate-paid/{s['invoice_id']}")).status_code == 401
+    r = await client.post(f"/dev/simulate-paid/{s['invoice_id']}", headers=auth(other_user))
+    assert r.status_code == 404
+    assert await status(pool, "invoices", s["invoice_id"]) == "sent"

@@ -23,8 +23,14 @@ services:
         value: mock
       - key: MAX_AMOUNT_MINOR
         value: "1000000"
+      # Rehearsal-only routes. They are authenticated and owner-scoped when enabled,
+      # but production should keep them off.
       - key: ENABLE_DEV_ROUTES
-        value: "true"
+        value: "false"
+      - key: AGENT_RATE_LIMIT_PER_MINUTE
+        value: "20"
+      - key: PAYPAL_MOCK_WEBHOOK_SECRET
+        sync: false
       - key: CORS_ORIGIN
         sync: false
       - key: PAYPAL_CLIENT_ID

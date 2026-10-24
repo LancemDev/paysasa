@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     max_amount_minor: int = 1_000_000
     enable_dev_routes: bool = False
     cors_origin: str = "http://localhost:3000"
+    # Upper bound on an assistant request per user per minute. 0 disables the limit.
+    agent_rate_limit_per_minute: int = 20
+    # Supabase token introspection must fail closed and must not hang a request.
+    auth_timeout_seconds: float = 5.0
+    # The mock adapter accepts webhooks only when this secret is configured. Leave empty
+    # in production: the mock must never be able to forge a "paid" event there.
+    paypal_mock_webhook_secret: str = ""
 
     # Handed over by the PayPal teammate; read only by their adapter.
     paypal_client_id: str = ""

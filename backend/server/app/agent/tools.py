@@ -7,12 +7,13 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from app.actions.service import active_payout_total
 from app.activity import log_activity
 from app.agent.llm import ToolSpec
 from app.money import (
@@ -23,6 +24,7 @@ from app.paypal_contract import InvoiceItem, PayPalAdapter, PayPalError
 from app.transitions import NOW, transition
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+Alias = Annotated[str, Field(max_length=100)]
 
 
 class ToolError(Exception):
@@ -120,7 +122,7 @@ class CreateContactArgs(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     email: str = Field(min_length=3, max_length=320)
     role: str
-    aliases: list[str] = Field(default_factory=list, max_length=10)
+    aliases: list[Alias] = Field(default_factory=list, max_length=10)
 
     @field_validator("role")
     @classmethod
@@ -264,6 +266,14 @@ async def schedule_payout(ctx: ToolContext, args: SchedulePayoutArgs) -> tuple[d
             _check_amount(ctx, amount_minor, currency)
             if amount_minor > invoice["amount_minor"]:
                 raise ToolError("A payout cannot be larger than its invoice.")
+            # Locked/approved/submitted/succeeded payouts are already committed to this invoice.
+            # Without this check, several 100% payouts could each pass the per-payout test.
+            already_committed = await active_payout_total(conn, invoice_id)
+            if already_committed + amount_minor > invoice["amount_minor"]:
+                raise ToolError(
+                    f"This invoice already has {format_money(already_committed, currency)} committed in payouts; "
+                    "a new payout would exceed the invoice total."
+                )
 
             money = format_money(amount_minor, currency)
             if invoice["status"] == "paid":
@@ -314,7 +324,7 @@ async def list_invoices(ctx: ToolContext, args: ListInvoicesArgs) -> tuple[dict,
     async with ctx.pool.connection() as conn:
         cur = await conn.execute(
             f"""select i.id, i.description, i.amount_minor, i.currency, i.status, i.due_date, c.name as contact
-                from invoices i join contacts c on c.id = i.contact_id
+                from invoices i join contacts c on c.id = i.contact_id and c.owner_id = i.owner_id
                 where {where} order by i.created_at desc limit 50""",
             params,
         )

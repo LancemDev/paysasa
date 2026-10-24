@@ -6,6 +6,7 @@ import asyncio
 import logging
 import uuid
 from datetime import date
+from uuid import UUID
 
 from psycopg_pool import AsyncConnectionPool
 
@@ -19,22 +20,30 @@ log = logging.getLogger(__name__)
 REMINDER_GAP = "3 days"
 
 
-async def run_chase(pool: AsyncConnectionPool, llm: LLM | None, today: date | None = None) -> int:
+async def run_chase(pool: AsyncConnectionPool, llm: LLM | None, today: date | None = None,
+                    *, owner_id: UUID | None = None) -> int:
+    """Queue reminders for overdue invoices. owner_id scopes the job to one user (dev route)."""
     today = today or date.today()
+    owner_filter = ""
+    params: list = [today]
+    if owner_id is not None:
+        owner_filter = " and i.owner_id = %s"
+        params.append(owner_id)
     async with pool.connection() as conn:
         cur = await conn.execute(
             f"""select i.id, i.owner_id, i.description, i.amount_minor, i.currency, i.due_date,
                        c.name as client_name, coalesce(p.display_name, 'Your supplier') as sender_name
                 from invoices i
-                join contacts c on c.id = i.contact_id
+                join contacts c on c.id = i.contact_id and c.owner_id = i.owner_id
                 left join profiles p on p.id = i.owner_id
                 where i.status = 'sent' and i.due_date < %s
                   and (i.last_reminder_at is null or i.last_reminder_at < now() - interval '{REMINDER_GAP}')
                   and not exists (select 1 from pending_actions a
                                   where a.trigger_invoice_id = i.id and a.type = 'invoice_reminder'
                                     and a.status in ('locked', 'awaiting_approval', 'executing'))
+                  {owner_filter}
                 order by i.due_date""",
-            (today,),
+            params,
         )
         overdue = await cur.fetchall()
 

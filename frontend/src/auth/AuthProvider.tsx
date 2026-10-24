@@ -1,4 +1,5 @@
 import type { Session, User } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { setUnauthorizedHandler } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [expired, setExpired] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const userSignedOut = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     supabase.auth
@@ -29,6 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => setSession(data.session))
       .finally(() => setLoading(false));
     const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      // Never let one account's invoices, contacts or agent history survive a
+      // sign-out or show up for the next account on a shared device.
+      if (event === "SIGNED_OUT" || event === "SIGNED_IN") queryClient.clear();
       setSession(next);
       if (event === "PASSWORD_RECOVERY") setRecovering(true);
       if (event === "SIGNED_IN") setExpired(false);
@@ -40,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void supabase.auth.signOut({ scope: "local" });
     });
     return () => data.subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   const value = useMemo<AuthCtx>(
     () => ({

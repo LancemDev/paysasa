@@ -16,8 +16,22 @@ services:
         name: X-Content-Type-Options
         value: nosniff
       - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      # AG Grid needs eval(), so a full script-src policy is not possible yet.
+      # These directives still block framing, base-tag injection and plugin content.
+      - path: /*
+        name: Content-Security-Policy
+        value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
     routes:
       # Single-page app: let React Router handle every path.
       - type: rewrite
@@ -34,8 +48,10 @@ services:
         sync: false
       - key: VITE_PAYPAL_MODE
         value: mock
+      # Demo routes are off by default in production. Enable both this and the
+      # backend's ENABLE_DEV_ROUTES only for a rehearsal deployment.
       - key: VITE_ENABLE_DEMO
-        value: "true"
+        value: "false"
       - key: VITE_APPROVAL_SECOND_CONFIRM_MINOR
         value: "50000"
       - key: VITE_AG_GRID_LICENSE_KEY

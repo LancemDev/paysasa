@@ -164,6 +164,17 @@ async def test_fixed_amount_payout_and_already_paid(client, pool, user, llm):
     assert res["status"] == "awaiting_approval" and res["summary"] == "Payout Sarah $100.50"
 
 
+async def test_payouts_cannot_exceed_invoice_in_total(client, pool, user, llm):
+    inv = await make_sent_invoice(client, user, llm)
+    first = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv,
+                           payee_contact_id=str(user["sarah"]), split_percent=60)
+    assert "action_id" in first
+    second = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv,
+                            payee_contact_id=str(user["sarah"]), split_percent=60)
+    assert "committed" in second["error"] and "exceed" in second["error"]
+    assert len(await fetchall(pool, "select * from pending_actions where type = 'payout'")) == 1
+
+
 async def test_paypal_failure_marks_invoice_failed(client, pool, user, llm, adapter):
     adapter.fail_next("create_and_send_invoice", PayPalError("INVALID_REQUEST", "bad email"))
     res = await run_tool(client, user, llm, "send_invoice", contact_id=str(user["john"]), description="Work",
@@ -214,6 +225,15 @@ async def test_message_validation_and_auth(client, user):
     assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
     r = await client.post("/api/agent/message", json={"message": "hi"})
     assert r.status_code == 401 and r.json()["error"]["code"] == "unauthorized"
+
+
+async def test_agent_message_rate_limit(client, pool, user, llm):
+    llm.steps = [reply("ok")] * 21
+    for i in range(20):
+        r = await client.post("/api/agent/message", json={"message": f"hello {i}"}, headers=auth(user))
+        assert r.status_code == 200, r.text
+    r = await client.post("/api/agent/message", json={"message": "one too many"}, headers=auth(user))
+    assert r.status_code == 429 and r.json()["error"]["code"] == "rate_limited"
 
 
 def test_no_approval_tool():

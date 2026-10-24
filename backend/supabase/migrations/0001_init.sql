@@ -104,6 +104,7 @@ create table webhook_events (
 create index on invoices (owner_id, status);
 create index on pending_actions (trigger_invoice_id);
 create index on pending_actions (owner_id, status);
+create index agent_runs_owner_created_idx on agent_runs (owner_id, created_at desc);
 
 -- updated_at
 create function set_updated_at() returns trigger language plpgsql as $$

@@ -50,6 +50,10 @@ export function friendlyMessage(kind: ApiErrorKind, status: number, code: string
       return detail ? `Some details weren't accepted: ${humanizeValidation(detail)}` : "Some details weren't accepted.";
     case "agent_failed":
       return "PaySasa couldn't finish that request. Check the dashboard for anything already done, then try again.";
+    case "rate_limited":
+      return "You've made too many requests. Please wait a minute and try again.";
+    case "payload_too_large":
+      return "That request was too large. Please shorten it and try again.";
   }
   if (status === 502 || status === 503 || status === 504) return "PaySasa is temporarily unavailable. Please try again shortly.";
   if (status >= 500) return "Something went wrong on our side. Please try again.";

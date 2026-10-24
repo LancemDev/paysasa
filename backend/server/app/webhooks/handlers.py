@@ -19,7 +19,8 @@ class RetryLater(Exception):
 
 async def _invoice_with_contact(conn: AsyncConnection, where: str, value) -> dict | None:
     cur = await conn.execute(
-        f"""select i.*, c.name as contact_name from invoices i join contacts c on c.id = i.contact_id
+        f"""select i.*, c.name as contact_name from invoices i
+            join contacts c on c.id = i.contact_id and c.owner_id = i.owner_id
             where {where} for update of i""",
         (value,),
     )
@@ -28,7 +29,8 @@ async def _invoice_with_contact(conn: AsyncConnection, where: str, value) -> dic
 
 async def _open_actions(conn: AsyncConnection, invoice_id, type_: str, status: str) -> list[dict]:
     cur = await conn.execute(
-        """select a.*, c.name as payee_name from pending_actions a left join contacts c on c.id = a.payee_contact_id
+        """select a.*, c.name as payee_name from pending_actions a
+           left join contacts c on c.id = a.payee_contact_id and c.owner_id = a.owner_id
            where a.trigger_invoice_id = %s and a.type = %s::action_type and a.status = %s::action_status
            for update of a""",
         (invoice_id, type_, status),

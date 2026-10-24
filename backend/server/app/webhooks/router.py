@@ -16,14 +16,38 @@ from app.webhooks.handlers import (
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["webhooks"])
 
+# A PayPal event is a few KB. Refuse anything larger before buffering it, so an
+# unauthenticated caller cannot use this endpoint as a memory-exhaustion lever.
+MAX_WEBHOOK_BYTES = 1_048_576
+
 
 def _resp(status: int, **body) -> JSONResponse:
     return JSONResponse(status_code=status, content=body)
 
 
+async def _read_limited_body(request: Request) -> bytes | None:
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > MAX_WEBHOOK_BYTES:
+                return None
+        except ValueError:
+            return None
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > MAX_WEBHOOK_BYTES:
+            return None
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 @router.post("/webhooks/paypal")
 async def paypal_webhook(request: Request, adapter: PayPalAdapter = Depends(get_adapter)):
-    raw = await request.body()  # exact bytes: signature verification depends on them
+    raw = await _read_limited_body(request)  # exact bytes: signature verification depends on them
+    if raw is None:
+        return _resp(413, ok=False, error="payload too large")
     headers = {k.lower(): v for k, v in request.headers.items()}
     try:
         verified = await adapter.verify_webhook(headers, raw)
@@ -39,9 +63,16 @@ async def paypal_webhook(request: Request, adapter: PayPalAdapter = Depends(get_
     try:
         event = json.loads(raw)
         event_id, event_type = str(event["id"]), str(event["event_type"])
+        resource = event.get("resource") or {}
+        if not event_id or len(event_id) > 200 or not event_type or len(event_type) > 100:
+            raise ValueError("invalid event identity")
+        if not isinstance(resource, dict):
+            raise ValueError("invalid resource")
+        resource_id = resource.get("id")
+        if resource_id is not None and len(str(resource_id)) > 200:
+            raise ValueError("invalid resource id")
     except (ValueError, KeyError, TypeError):
         return _resp(400, ok=False, error="malformed event")
-    resource = event.get("resource") or {}
 
     try:
         await process_event(adapter, event_id, event_type, resource, event)

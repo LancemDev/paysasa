@@ -1,5 +1,5 @@
 import re
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -12,13 +12,14 @@ from app.errors import AppError
 
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+Alias = Annotated[str, Field(max_length=100)]
 
 
 class ContactIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     email: str = Field(min_length=3, max_length=320)
     role: Literal["client", "contractor"]
-    aliases: list[str] = Field(default_factory=list, max_length=10)
+    aliases: list[Alias] = Field(default_factory=list, max_length=10)
 
     @field_validator("email")
     @classmethod

@@ -19,6 +19,21 @@ class MessageIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 
 
+async def _enforce_rate_limit(user_id: UUID) -> None:
+    """A signed-in account must not be able to burn unbounded LLM credit."""
+    limit = get_settings().agent_rate_limit_per_minute
+    if limit <= 0:
+        return
+    async with get_pool().connection() as conn:
+        cur = await conn.execute(
+            "select count(*) as n from agent_runs where owner_id = %s and created_at > now() - interval '1 minute'",
+            (user_id,),
+        )
+        recent = (await cur.fetchone())["n"]
+    if recent >= limit:
+        raise AppError(429, "rate_limited", "Too many assistant requests. Please wait a minute and try again.")
+
+
 @router.post("/message")
 async def post_message(
     body: MessageIn,
@@ -26,6 +41,7 @@ async def post_message(
     llm: LLM = Depends(get_llm),
     adapter: PayPalAdapter = Depends(get_adapter),
 ):
+    await _enforce_rate_limit(user_id)
     try:
         run_id, reply = await run_agent(
             pool=get_pool(), llm=llm, adapter=adapter, owner_id=user_id, message=body.message.strip(),

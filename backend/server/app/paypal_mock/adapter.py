@@ -1,9 +1,12 @@
 """In-memory stand-in for the PayPal adapter. Implements app.paypal_contract.PayPalAdapter.
 
-Webhook verification accepts a request whose `paypal-transmission-sig` header equals MOCK_SIGNATURE.
+Webhook verification accepts a request whose `paypal-transmission-sig` header equals the
+configured `webhook_secret`. When no secret is configured (the production default), every
+mock webhook is rejected: MOCK_SIGNATURE is public and must never be trusted outside tests.
 Tests can queue failures with fail_next(method, PayPalError(...)) and set invoice states directly.
 """
 import asyncio
+import hmac
 import itertools
 
 from app.paypal_contract import (
@@ -14,8 +17,9 @@ MOCK_SIGNATURE = "mock-valid-signature"
 
 
 class MockPayPalAdapter:
-    def __init__(self, delay_seconds: float = 0.0):
+    def __init__(self, delay_seconds: float = 0.0, *, webhook_secret: str | None = None):
         self.delay_seconds = delay_seconds
+        self.webhook_secret = webhook_secret
         self.invoices: dict[str, dict] = {}
         self.payouts: dict[str, dict] = {}          # keyed by sender_batch_id
         self.reminders: list[tuple[str, str | None]] = []
@@ -97,5 +101,8 @@ class MockPayPalAdapter:
         raise PayPalError("RESOURCE_NOT_FOUND", f"Payout batch {payout_batch_id} not found")
 
     async def verify_webhook(self, headers: dict[str, str], raw_body: bytes) -> bool:
+        if not self.webhook_secret:
+            return False
         lowered = {k.lower(): v for k, v in headers.items()}
-        return lowered.get("paypal-transmission-sig") == MOCK_SIGNATURE
+        supplied = lowered.get("paypal-transmission-sig", "")
+        return bool(supplied) and hmac.compare_digest(supplied, self.webhook_secret)

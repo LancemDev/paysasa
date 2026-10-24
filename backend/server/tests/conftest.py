@@ -11,6 +11,7 @@ os.environ.setdefault("DATABASE_URL", "postgresql://unused")
 os.environ["ENABLE_DEV_ROUTES"] = "true"
 os.environ["PAYPAL_ADAPTER"] = "mock"
 os.environ["MAX_AMOUNT_MINOR"] = "1000000"
+os.environ["PAYPAL_MOCK_WEBHOOK_SECRET"] = "mock-valid-signature"
 
 import httpx
 import psycopg
@@ -41,7 +42,8 @@ def database_url():
     url = make_conninfo(**{**conninfo_to_dict(admin), "dbname": name})
     with psycopg.connect(url, autocommit=True) as c:
         c.execute((Path(__file__).parent / "supabase_shim.sql").read_text())
-        c.execute((ROOT / "supabase/migrations/0001_init.sql").read_text())
+        for migration in sorted((ROOT / "supabase/migrations").glob("*.sql")):
+            c.execute(migration.read_text())
         c.execute("grant usage on schema public to authenticated; grant select on all tables in schema public to authenticated")
     yield url
     with psycopg.connect(admin, autocommit=True) as c:
@@ -88,7 +90,7 @@ async def other_user(pool):
 
 @pytest.fixture
 def adapter():
-    return MockPayPalAdapter()
+    return MockPayPalAdapter(webhook_secret="mock-valid-signature")
 
 
 class FakeChat:

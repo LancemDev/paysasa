@@ -2,7 +2,7 @@ from datetime import date
 
 from app.agent.draft_reminder import is_valid
 from app.jobs.chase import run_chase
-from tests.conftest import FakeLLM, fetchall
+from tests.conftest import FakeLLM, auth, fetchall
 from tests.helpers import sent_invoice_with_payout
 
 
@@ -52,5 +52,15 @@ def test_is_valid():
 
 async def test_dev_run_chase(client, pool, user, adapter, llm):
     await sent_invoice_with_payout(pool, adapter, user)
-    r = await client.post("/dev/run-chase")
+    r = await client.post("/dev/run-chase", headers=auth(user))
     assert r.json() == {"created": 1}
+
+
+async def test_dev_run_chase_requires_auth_and_is_owner_scoped(client, pool, user, other_user, adapter, llm):
+    await sent_invoice_with_payout(pool, adapter, user)
+    await sent_invoice_with_payout(pool, adapter, other_user)
+    assert (await client.post("/dev/run-chase")).status_code == 401
+    r = await client.post("/dev/run-chase", headers=auth(user))
+    assert r.json() == {"created": 1}
+    reminders = await fetchall(pool, "select owner_id from pending_actions where type = 'invoice_reminder'")
+    assert [row["owner_id"] for row in reminders] == [user["id"]]

@@ -13,13 +13,15 @@ Copy `server/.env.example` to `server/.env` (git-ignored). On Render, set the sa
 | `ANTHROPIC_API_KEY`, `LLM_MODEL` | Claude key and model name, e.g. `claude-sonnet-5-5` |
 | `PAYPAL_ADAPTER` | `mock` (default) or `real` |
 | `MAX_AMOUNT_MINOR` | Per-invoice and per-payout cap in cents (default `1000000` = $10,000) |
-| `ENABLE_DEV_ROUTES` | `true` mounts `/dev/*` for rehearsals; set `false` after the video is recorded |
+| `ENABLE_DEV_ROUTES` | `true` mounts `/dev/*` for rehearsals. Off by default; when on, the routes still require a signed-in user and only touch that user's rows. |
+| `AGENT_RATE_LIMIT_PER_MINUTE` | Per-user cap on assistant messages (default `20`; `0` disables) |
 | `CORS_ORIGIN` | The frontend's URL (comma-separate several) |
+| `PAYPAL_MOCK_WEBHOOK_SECRET` | Mock adapter only. Webhooks are rejected unless this is set and matches `paypal-transmission-sig`. Leave empty in production. |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENV` | Sandbox values from the PayPal teammate, read only by the real adapter |
 
 ### Database
 
-1. In the Supabase SQL editor (or `supabase db push`), run `supabase/migrations/0001_init.sql`.
+1. In the Supabase SQL editor (or `supabase db push`), run every file in `supabase/migrations/` in order (`0001_init.sql`, then `0002_security_hardening.sql` on an existing database).
 2. Sign up the demo user (email `demo@paysasa.app`, or edit the email at the top of `seed.sql`).
 3. Put Sarah's PayPal sandbox email into `supabase/seed.sql` and run it. It is safe to re-run.
 
@@ -34,9 +36,9 @@ cp .env.example .env    # fill in DATABASE_URL, SUPABASE_*, ANTHROPIC_API_KEY, L
 .venv/bin/uvicorn app.main:app --reload
 ```
 
-With `PAYPAL_ADAPTER=mock`, invoices and payouts are stored in memory and `POST /dev/simulate-paid/<invoice id>` stands in for the buyer paying. The mock accepts a webhook whose `paypal-transmission-sig` header is `mock-valid-signature`.
+With `PAYPAL_ADAPTER=mock`, invoices and payouts are stored in memory and `POST /dev/simulate-paid/<invoice id>` stands in for the buyer paying. Set `ENABLE_DEV_ROUTES=true` locally to mount it. The mock accepts a webhook only when `PAYPAL_MOCK_WEBHOOK_SECRET` is set; tests use the value `mock-valid-signature`.
 
-Run the chase job once: `python -m app.jobs.chase` (or `POST /dev/run-chase`).
+Run the chase job once: `python -m app.jobs.chase` (or `POST /dev/run-chase` with a user token; the dev route only chases that user's invoices).
 
 ### Tests
 
@@ -49,7 +51,18 @@ TEST_DATABASE_URL=postgresql://postgres@localhost:5432/postgres .venv/bin/python
 
 ### API
 
-All `/api/*` routes need `Authorization: Bearer <Supabase access token>`. Errors look like `{ "error": { "code", "message" } }`.
+All `/api/*` routes and both `/dev/*` routes need `Authorization: Bearer <Supabase access token>`. Errors look like `{ "error": { "code", "message" } }`.
+
+### Security model
+
+- **Authentication.** The API validates every Bearer token with Supabase before touching the database. Validation is time-bounded and fails closed.
+- **Authorization.** Every user-owned query is scoped by `owner_id`; the dev routes are no exception. Supabase RLS lets browsers read only their own rows, and all writes go through the API's service connection.
+- **Webhooks.** Real PayPal events must pass the adapter's signature verification. The mock adapter refuses every webhook unless `PAYPAL_MOCK_WEBHOOK_SECRET` is explicitly configured, so its public test signature cannot forge a payment in a deployed environment.
+- **Money.** Payouts require explicit approval, are capped per action, and are capped in aggregate: locked/approved/submitted/succeeded payouts for one invoice can never exceed that invoice's total. The checks run again at approval time under the invoice row lock.
+- **Data exposure.** Authenticated responses are `Cache-Control: no-store`; the API sends `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` and HSTS. The frontend clears its query cache on sign-out and on sign-in so one account's data cannot be shown to the next.
+- **Abuse limits.** Assistant messages are limited per user per minute, webhook bodies are capped at 1 MiB, and the API docs are only mounted when `ENABLE_DEV_ROUTES=true`.
+
+Residual risk: the real PayPal adapter (`server/app/paypal/`) is owned by the PayPal teammate and is not in this repository, so its signature implementation should be reviewed separately before switching `PAYPAL_ADAPTER=real`. The mock adapter is for demos only.
 
 | Method & path | Body | Returns |
 |---|---|---|
@@ -60,8 +73,8 @@ All `/api/*` routes need `Authorization: Bearer <Supabase access token>`. Errors
 | `POST /api/contacts` | `{ name, email, role, aliases? }` | `{ contact }` (201) |
 | `POST /webhooks/paypal` | PayPal event | 200 / 400 bad signature / 500 retry |
 | `GET /health` | | `{ ok: true }` |
-| `POST /dev/simulate-paid/:invoiceId` | | `{ invoice }` (dev only) |
-| `POST /dev/run-chase` | | `{ created }` (dev only) |
+| `POST /dev/simulate-paid/:invoiceId` | | `{ invoice }` (dev only; auth + owner check) |
+| `POST /dev/run-chase` | | `{ created }` (dev only; auth + owner scope) |
 
 ### Deploy (Render)
 

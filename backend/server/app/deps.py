@@ -14,4 +14,7 @@ def get_adapter() -> PayPalAdapter:
         return get_paypal_adapter()
     from app.paypal_mock import MockPayPalAdapter
 
-    return MockPayPalAdapter()
+    # An empty secret deliberately disables mock webhook verification. The mock's
+    # signature is public, so accepting it in a deployed environment would let
+    # anyone forge "invoice paid" events.
+    return MockPayPalAdapter(webhook_secret=get_settings().paypal_mock_webhook_secret or None)

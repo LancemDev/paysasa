@@ -8,6 +8,13 @@ import { useAuth } from "@/auth/AuthProvider";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
+/** Only allow an in-app path after sign-in; never an absolute or protocol-relative URL. */
+function safeRedirect(value: unknown): string {
+  if (typeof value !== "string") return "/";
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";
+  return value;
+}
+
 function friendlyAuthError(message: string): string {
   if (/invalid login credentials/i.test(message)) return "That email and password don't match. Check them and try again.";
   if (/email not confirmed/i.test(message)) return "Please confirm your email first. Check your inbox for the link.";
@@ -47,7 +54,7 @@ export function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const from = (location.state as { from?: string } | null)?.from ?? "/";
+  const from = safeRedirect((location.state as { from?: string } | null)?.from);
   if (user) return <Navigate to={from} replace />;
 
   const submit = async (e: FormEvent) => {
