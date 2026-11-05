@@ -119,6 +119,27 @@
   color-scheme: dark;
 }
 
+/* High contrast: darker ink and stronger borders (light), brighter ink (dark). Checked for 7:1 on body text. */
+:root[data-contrast="high"] {
+  --text: #000000;
+  --text-muted: #2b332e;
+  --text-subtle: #3a433d;
+  --border: #8d9488;
+  --border-strong: #4d554f;
+  --focus: #000000;
+}
+:root[data-theme="dark"][data-contrast="high"] {
+  --text: #ffffff;
+  --text-muted: #dbe4de;
+  --text-subtle: #c3cec7;
+  --border: #5d7a69;
+  --border-strong: #9fbcaa;
+  --focus: #ffffff;
+}
+:root[data-contrast="high"] a:not([class*="rounded"]) {
+  text-decoration: underline;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -188,6 +209,17 @@ body {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 6px;
+}
+:root[data-contrast="high"] :focus-visible {
+  outline-width: 3px;
+}
+
+/* Larger text: scales the whole interface so layouts keep their proportions (and portals scale too). */
+:root[data-text="lg"] body {
+  zoom: 1.125;
+}
+:root[data-text="xl"] body {
+  zoom: 1.25;
 }
 
 /* Display type: Fraunces at moderate sizes with tight tracking (never shouting). */
@@ -347,6 +379,15 @@ body {
 }
 .pulse-dot {
   animation: pulse-dot 2s ease-in-out infinite;
+}
+
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

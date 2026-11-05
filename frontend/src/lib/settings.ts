@@ -11,10 +11,14 @@ export interface Settings {
   lang: "en" | "sw";
   /** The first-run setup guide was finished or skipped. */
   setupDone: boolean;
+  /** Accessibility: text size, high contrast and motion (on top of the OS settings). */
+  textSize: "md" | "lg" | "xl";
+  highContrast: boolean;
+  reduceMotion: boolean;
 }
 
 const KEY = "paysasa.settings.v1";
-const defaults: Settings = { theme: "system", secondConfirmMinor: env.secondConfirmMinor, onboardingDismissed: false, lang: "en", setupDone: false };
+const defaults: Settings = { theme: "system", secondConfirmMinor: env.secondConfirmMinor, onboardingDismissed: false, lang: "en", setupDone: false, textSize: "md", highContrast: false, reduceMotion: false };
 const listeners = new Set<() => void>();
 let cache: Settings | null = null;
 
@@ -71,4 +75,30 @@ export function useApplyLang() {
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+}
+
+/** Resolved light/dark, following the OS when the theme is "system". */
+export function useResolvedTheme(): "light" | "dark" {
+  const [{ theme }] = useSettings();
+  const dark = useSyncExternalStore(
+    (l) => {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      mq.addEventListener("change", l);
+      return () => mq.removeEventListener("change", l);
+    },
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+    () => false,
+  );
+  return theme === "dark" || (theme === "system" && dark) ? "dark" : "light";
+}
+
+/** Text size, contrast and motion preferences go on <html data-*>, where the CSS tokens pick them up. */
+export function useApplyDisplay() {
+  const [{ textSize, highContrast, reduceMotion }] = useSettings();
+  useEffect(() => {
+    const d = document.documentElement.dataset;
+    d.text = textSize;
+    d.contrast = highContrast ? "high" : "normal";
+    d.motion = reduceMotion ? "reduce" : "system";
+  }, [textSize, highContrast, reduceMotion]);
 }

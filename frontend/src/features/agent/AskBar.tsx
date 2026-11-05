@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { cn } from "@/components/ui/cn";
 import { DEMO_PROMPT } from "@/lib/agent";
 import { useT } from "@/lib/i18n";
+import { VoiceButton } from "@/components/ui/VoiceButton";
 import { useAgent } from "./AgentProvider";
 
 /**
@@ -37,6 +38,7 @@ export function AskBar({ className }: { className?: string }) {
           autoComplete="off"
           className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-subtle focus-visible:outline-none"
         />
+        <VoiceButton onText={(x) => setText((v) => (v ? `${v} ${x}` : x))} />
         <kbd aria-hidden className="hidden rounded-md border border-border px-1.5 py-0.5 font-[family-name:var(--font-mono)] text-[11px] text-subtle sm:block">
           ⌘K
         </kbd>

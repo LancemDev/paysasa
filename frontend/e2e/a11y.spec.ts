@@ -92,3 +92,37 @@ test("first sign-in: welcome steps, language switch, spotlight tour", async ({ p
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Welcome to PaySasa" })).toHaveCount(0);
 });
+
+test("display and accessibility menu: theme, larger text, high contrast, reduced motion", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "one viewport is enough");
+  await createFakeBackend(page).install();
+  await signIn(page);
+  const html = page.locator("html");
+
+  // One-tap theme toggle in the header
+  const before = await html.getAttribute("data-theme");
+  await page.getByRole("button", { name: /Switch to (dark|light) mode/ }).click();
+  await expect(html).not.toHaveAttribute("data-theme", before ?? "");
+
+  // Accessibility menu
+  await page.getByRole("button", { name: "Display and accessibility" }).click();
+  await page.getByRole("menuitemradio", { name: "Larger text" }).click();
+  await expect(html).toHaveAttribute("data-text", "xl");
+  await page.getByRole("menuitemcheckbox", { name: /High contrast/ }).click();
+  await expect(html).toHaveAttribute("data-contrast", "high");
+  await page.getByRole("menuitemcheckbox", { name: /Reduce motion/ }).click();
+  await expect(html).toHaveAttribute("data-motion", "reduce");
+  await page.keyboard.press("Escape");
+
+  // Still no WCAG violations with high contrast and large text, in both themes
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+    const r = await new AxeBuilder({ page }).withTags(wcag).exclude(".ag-root-wrapper").analyze();
+    expect(r.violations).toEqual([]);
+  }
+
+  // Preferences survive a reload
+  await page.reload();
+  await expect(html).toHaveAttribute("data-contrast", "high");
+  await expect(html).toHaveAttribute("data-text", "xl");
+});
