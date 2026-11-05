@@ -4,7 +4,9 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/components/ui/cn";
 import { DEMO_PROMPT, SUGGESTED_PROMPTS, actionCardsFromToolCalls } from "@/lib/agent";
+import { useT } from "@/lib/i18n";
 import { useConnectionStatus } from "@/lib/realtime";
+import { LogoMark } from "@/components/layout/Logo";
 import { ActionCards } from "./ActionCards";
 import { useAgent, type AssistantMessage, type ChatMessage } from "./AgentProvider";
 import { StepTrace } from "./StepTrace";
@@ -12,6 +14,7 @@ import { StepTrace } from "./StepTrace";
 const MAX_CHARS = 2000;
 
 export function AgentPanel({ onClose }: { onClose?: () => void }) {
+  const t = useT();
   const { messages, historyLoading, busy } = useAgent();
   const listRef = useRef<HTMLDivElement>(null);
   const last = messages[messages.length - 1];
@@ -24,13 +27,14 @@ export function AgentPanel({ onClose }: { onClose?: () => void }) {
 
   return (
     <section aria-label="PaySasa assistant" className="flex h-full min-h-0 flex-col bg-surface">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
-        <span aria-hidden className="grid size-7 place-items-center rounded-full bg-accent-soft text-accent">
-          <Sparkles className="size-4" />
+      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-4">
+        <span className="relative">
+          <LogoMark className="size-8" />
+          <span aria-hidden className={cn("absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-surface", busy ? "pulse-dot bg-lime-2 text-lime-2" : "bg-success")} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold leading-tight">Ask PaySasa</h2>
-          <p className="text-xs text-muted">Invoices, follow-ups and payouts. You approve every payment.</p>
+          <h2 className="text-[15px] leading-tight font-semibold">{t("agent.title")}</h2>
+          <p className="truncate text-xs text-muted">{busy ? t("agent.working") : t("agent.subtitle")}</p>
         </div>
         {onClose && <IconButton label="Close assistant" onClick={onClose} icon={<X aria-hidden className="size-5" />} />}
       </header>
@@ -60,31 +64,33 @@ export function AgentPanel({ onClose }: { onClose?: () => void }) {
 }
 
 function Welcome() {
+  const t = useT();
   const { prefill, send, busy } = useAgent();
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-[var(--radius-card)] bg-surface-2 p-4">
-        <p className="font-medium">Hi! Tell me what you need in plain words.</p>
-        <p className="mt-1 text-muted">
-          I can send PayPal invoices, check who hasn't paid, and set up payouts to your collaborators. Payouts always wait for your approval.
-        </p>
+    <div className="flex flex-col gap-5">
+      <div>
+        <p className="display text-[26px]">{t("agent.hello")}</p>
+        <p className="mt-2 text-muted">{t("agent.helloBody")}</p>
       </div>
       <div>
-        <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Try the demo</p>
+        <p className="eyebrow mb-2">{t("agent.tryDemo")}</p>
         <button
           type="button"
           disabled={busy}
           onClick={() => void send(DEMO_PROMPT)}
-          className="w-full rounded-[var(--radius-card)] border border-accent/40 bg-accent-soft p-3 text-left transition-colors hover:border-accent disabled:opacity-60"
+          className="group w-full rounded-2xl bg-forest p-4 text-left text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60 grain relative overflow-hidden"
         >
-          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-accent">
-            <Sparkles aria-hidden className="size-3.5" /> Kwame's request (one tap)
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-lime">
+            <Sparkles aria-hidden className="size-3.5" /> {t("agent.kwame")}
           </span>
-          <span className="mt-1 block text-[13px]">“{DEMO_PROMPT}”</span>
+          <span className="mt-1.5 block text-[13.5px] leading-relaxed text-white/90">“{DEMO_PROMPT}”</span>
+          <span aria-hidden className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-white/60 group-hover:text-white">
+            {t("agent.send")} →
+          </span>
         </button>
       </div>
       <div>
-        <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Or start with</p>
+        <p className="eyebrow mb-2">{t("agent.orStart")}</p>
         <div className="flex flex-wrap gap-2">
           {SUGGESTED_PROMPTS.map((p) => (
             <Chip key={p.label} onClick={() => prefill(p.prompt)}>
@@ -93,6 +99,7 @@ function Welcome() {
           ))}
         </div>
       </div>
+      <p className="text-xs text-subtle">{t("agent.shortcut")}</p>
     </div>
   );
 }
@@ -100,7 +107,7 @@ function Welcome() {
 function Message({ message }: { message: ChatMessage }) {
   if (message.role === "user") {
     return (
-      <div className="ml-auto w-fit max-w-[88%] rounded-[var(--radius-card)] rounded-br-sm bg-accent px-3 py-2 break-words whitespace-pre-wrap text-accent-fg">
+      <div className="ml-auto w-fit max-w-[88%] rounded-2xl rounded-br-md bg-forest px-3.5 py-2.5 break-words whitespace-pre-wrap text-white dark:bg-surface-3 dark:text-fg">
         <span className="sr-only">You said: </span>
         {message.text}
       </div>
@@ -120,7 +127,7 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
     <div className="max-w-full">
       <span className="sr-only">PaySasa: </span>
       {hasSteps && (
-        <div className="mb-2 rounded-[var(--radius-card)] border border-border bg-bg/60 px-3 py-2">
+        <div className="mb-2 rounded-2xl border border-border bg-bg px-3 py-2.5">
           <button
             type="button"
             className="mb-1 flex items-center gap-1 text-xs font-semibold tracking-wide text-muted uppercase"
@@ -136,7 +143,7 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
       {message.text && (
         <div
           className={cn(
-            "w-fit max-w-[95%] rounded-[var(--radius-card)] rounded-bl-sm px-3 py-2 break-words whitespace-pre-wrap",
+            "w-fit max-w-[95%] rounded-2xl rounded-bl-md px-3.5 py-2.5 break-words whitespace-pre-wrap",
             message.status === "error" ? "border border-danger/30 bg-danger-soft" : message.status === "stopped" ? "bg-warning-soft" : "bg-surface-2",
           )}
           role={message.status === "error" ? "alert" : undefined}
@@ -155,6 +162,7 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
 }
 
 function Composer({ clarificationOptions, placeholder }: { clarificationOptions: string[]; placeholder?: string }) {
+  const t = useT();
   const { draft, setDraft, send, stop, busy, focusToken } = useAgent();
   const status = useConnectionStatus();
   const offline = status === "offline";
@@ -205,7 +213,7 @@ function Composer({ clarificationOptions, placeholder }: { clarificationOptions:
         </div>
       )}
       {offline && <p className="mb-2 text-[13px] text-warning">You're offline. Your message will be kept until you reconnect.</p>}
-      <div className="flex items-end gap-2 rounded-[var(--radius-card)] border border-border-strong bg-surface p-1.5 focus-within:border-accent">
+      <div className="ask-ring flex items-end gap-2 rounded-[22px]! p-1.5 pl-2" data-busy={busy}>
         <label htmlFor="agent-input" className="sr-only">
           Message PaySasa
         </label>
@@ -216,7 +224,7 @@ function Composer({ clarificationOptions, placeholder }: { clarificationOptions:
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={placeholder ?? "e.g. Invoice Amina £300 for the logo refresh"}
+          placeholder={placeholder ?? t("agent.placeholder")}
           aria-invalid={over}
           aria-describedby={over ? "agent-input-err" : undefined}
           className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 outline-none focus-visible:outline-none"
@@ -229,6 +237,7 @@ function Composer({ clarificationOptions, placeholder }: { clarificationOptions:
             type="submit"
             variant="primary"
             size="sm"
+            className="rounded-full!"
             disabled={!draft.trim() || over || offline}
             icon={<ArrowUp aria-hidden className="size-4" />}
           />
@@ -248,7 +257,7 @@ function Chip({ children, onClick }: { children: string; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border border-border-strong bg-surface px-3 py-1 text-[13px] font-medium transition-colors hover:border-accent hover:text-accent"
+      className="rounded-full border border-border bg-surface px-3 py-1.5 text-[13px] font-medium transition-colors hover:border-fg/40 hover:bg-surface-2"
     >
       {children}
     </button>

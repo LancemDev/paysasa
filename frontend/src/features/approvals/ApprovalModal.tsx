@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Dialog";
 import { TextArea, TextField } from "@/components/ui/Field";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/components/ui/cn";
+import { FlowLine } from "@/components/ui/FlowLine";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { formatMoney, formatMoneyWithCode } from "@/lib/money";
 import { plainPayPalError } from "@/lib/paypalErrors";
@@ -96,12 +97,23 @@ function PayoutReview({ action, payee, invoice, client, outcome, approve, reject
   return (
     <div className="flex flex-col">
       <div className="space-y-4 p-5">
-        <div className="rounded-[var(--radius-card)] border border-warning/40 bg-warning-soft p-4" role="note">
+        <div className="rounded-2xl border border-warning/30 bg-warning-soft p-4" role="note">
           <p className="text-base font-semibold text-fg">
             This will send <span className="tabular">{money}</span> to {payeeName} via PayPal.
           </p>
           <p className="mt-1 text-[13px] text-muted">Once PayPal accepts it, it can't be undone from PaySasa.</p>
         </div>
+        {invoice && (
+          <div aria-hidden className="rounded-2xl border border-border bg-surface-2 px-4 pt-4 pb-3">
+            <FlowLine
+              from={client?.name ?? "Client"}
+              to={payeeName}
+              inAmount={formatMoney(invoice.amount_minor, invoice.currency)}
+              outAmount={formatMoney(amount, action.currency)}
+              locked={invoice.status !== "paid"}
+            />
+          </div>
+        )}
 
         <dl className="grid grid-cols-[6.5rem_1fr] gap-x-3 sm:grid-cols-[8.5rem_1fr] gap-y-2.5">
           <Row label="Recipient">

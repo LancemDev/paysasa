@@ -32,8 +32,8 @@ export function ActionCards({ cards }: { cards: ActionCardModel[] }) {
 
 function Card({ icon, title, badge, children, footer }: { icon: ReactNode; title: string; badge?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
-    <article className="animate-in rounded-[var(--radius-card)] border border-border bg-surface shadow-1">
-      <header className="flex items-center gap-2 border-b border-border px-3 py-2">
+    <article className="animate-in overflow-hidden rounded-2xl border border-border bg-surface">
+      <header className="flex items-center gap-2 border-b border-border bg-surface-2 px-3 py-2">
         <span aria-hidden className="text-muted">
           {icon}
         </span>

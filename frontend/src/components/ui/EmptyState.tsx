@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 
 export function EmptyState({ icon, title, children, action }: { icon?: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-      {icon && <div className="grid size-12 place-items-center rounded-full bg-accent-soft text-accent">{icon}</div>}
-      <h3 className="text-base font-semibold">{title}</h3>
+    <div className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+      {icon && <div className="grid size-11 place-items-center rounded-2xl border border-border bg-surface-2 text-fg">{icon}</div>}
+      <h3 className="text-[15px] font-semibold">{title}</h3>
       {children && <div className="max-w-md text-muted">{children}</div>}
       {action && <div className="mt-1">{action}</div>}
     </div>

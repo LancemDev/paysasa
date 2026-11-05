@@ -20,21 +20,39 @@ function friendlyAuthError(message: string): string {
 
 function AuthLayout({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-dvh flex-col">
       <ModeBanner />
-      <main className="flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-sm">
-          <Link to="/welcome" className="mb-6 flex justify-center" aria-label="PaySasa AI home">
-            <Logo />
+      <div className="grid flex-1 lg:grid-cols-[1fr_1.1fr]">
+        <aside className="grain relative hidden flex-col justify-between overflow-hidden bg-forest p-10 text-white lg:flex">
+          <div aria-hidden className="absolute -top-32 -left-24 size-[480px] rounded-full bg-[radial-gradient(circle,rgb(200_241_105/0.22),transparent_65%)]" />
+          <Link to="/welcome" className="relative w-fit" aria-label="PaySasa home">
+            <Logo tone="inverse" />
           </Link>
-          <div className="rounded-[var(--radius-sheet)] border border-border bg-surface p-6 shadow-1">
-            <h1 className="text-xl font-semibold">{title}</h1>
-            {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
-            <div className="mt-5">{children}</div>
+          <div className="relative max-w-md">
+            <p className="display text-[40px] leading-[1.05]">Invoice the client. Pay the team. Approve once.</p>
+            <ul className="mt-8 space-y-3 text-[15px] text-white/80">
+              {["Real PayPal invoices from one sentence", "Your team's share waits, locked, until the client pays", "Nothing moves without your tap"].map((x) => (
+                <li key={x} className="flex items-center gap-3">
+                  <span aria-hidden className="grid size-5 place-items-center rounded-full bg-lime text-[11px] font-bold text-ink-on-lime">✓</span>
+                  {x}
+                </li>
+              ))}
+            </ul>
           </div>
-          {footer && <div className="mt-4 text-center text-[13px] text-muted">{footer}</div>}
-        </div>
-      </main>
+          <p className="relative text-[13px] text-white/50">PayPal sandbox demo. No real money moves.</p>
+        </aside>
+        <main className="flex items-center justify-center p-4 sm:p-8">
+          <div className="w-full max-w-[400px]">
+            <Link to="/welcome" className="mb-8 flex justify-center lg:hidden" aria-label="PaySasa home">
+              <Logo />
+            </Link>
+            <h1 className="display text-[34px]">{title}</h1>
+            {subtitle && <p className="mt-2 text-[15px] text-muted">{subtitle}</p>}
+            <div className="mt-7">{children}</div>
+            {footer && <div className="mt-6 text-[13.5px] text-muted">{footer}</div>}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
@@ -71,12 +89,12 @@ export function SignInPage() {
       }
     >
       {expired && (
-        <p role="status" className="mb-4 rounded-[var(--radius-input)] bg-warning-soft p-3 text-[13px]">
+        <p role="status" className="mb-5 rounded-xl bg-warning-soft p-3 text-[13px]">
           Your session expired. Please sign in again.
         </p>
       )}
       {env.demoLoginHint && (
-        <p className="mb-4 rounded-[var(--radius-input)] bg-accent-soft p-3 text-[13px]">
+        <p className="mb-5 rounded-xl border border-border bg-lime-soft p-3 text-[13px]">
           Demo account (PayPal sandbox): <code>{env.demoLoginHint}</code>
         </p>
       )}
@@ -88,7 +106,7 @@ export function SignInPage() {
             {error}
           </p>
         )}
-        <Button type="submit" variant="primary" loading={busy}>
+        <Button type="submit" variant="primary" size="lg" loading={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </Button>
         <Link to="/reset-password" className="text-center text-[13px] text-accent underline-offset-2 hover:underline">
@@ -148,7 +166,7 @@ export function SignUpPage() {
             {error}
           </p>
         )}
-        <Button type="submit" variant="primary" loading={busy}>
+        <Button type="submit" variant="primary" size="lg" loading={busy}>
           Create account
         </Button>
       </form>

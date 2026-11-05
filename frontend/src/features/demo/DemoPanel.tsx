@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, FlaskConical } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
@@ -14,39 +14,59 @@ import { qk, useContacts, useContactsById, useInvoices } from "@/lib/queries";
 /**
  * Rehearsal helper for the demo video. Clearly labelled, only shown with VITE_ENABLE_DEMO=true, and it calls
  * the real backend: /api/contacts, the agent, and the backend's own /dev routes (ENABLE_DEV_ROUTES=true).
+ * It floats in the corner so it never pushes the real product down the page.
  */
-export function DemoPanel() {
+export function DemoDock() {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const done = () => setOpen(false);
   return (
-    <section aria-label="Demo helper" className="rounded-[var(--radius-card)] border border-dashed border-warning/60 bg-warning-soft/40">
-      <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-4 py-3 text-left">
-        <FlaskConical aria-hidden className="size-4 text-warning" />
-        <span className="flex-1">
-          <span className="font-semibold">Demo helper</span>
-          <span className="ml-2 text-[13px] text-muted">For rehearsals: not part of the product. Uses the backend's test routes.</span>
-        </span>
-        <ChevronDown aria-hidden className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+    <section ref={ref} aria-label="Demo helper" className="fixed bottom-[5.5rem] left-3 z-40 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 md:bottom-4 md:left-4">
       {open && (
-        <div id={panelId} className="grid gap-4 border-t border-warning/30 p-4 md:grid-cols-2 xl:grid-cols-4">
-          <SeedContacts />
-          <SendPrompt />
-          <SimulatePayment />
-          <RunChase />
-          <p className="text-xs text-muted md:col-span-2 xl:col-span-4">
+        <div id={panelId} className="pop-in max-h-[min(70dvh,640px)] w-[min(380px,calc(100vw-1.5rem))] overflow-y-auto rounded-[var(--radius-sheet)] border border-dashed border-warning/50 bg-surface p-3 shadow-float [transform-origin:bottom_left]">
+          <p className="px-1 pb-2 text-[12.5px] text-muted">For rehearsals: not part of the product. Uses the backend's test routes.</p>
+          <div className="flex flex-col gap-2">
+            <SeedContacts />
+            <SendPrompt onDone={done} />
+            <SimulatePayment onDone={done} />
+            <RunChase />
+          </div>
+          <p className="mt-2 px-1 text-xs text-muted">
             Payout completion (“Submitted to PayPal” → “Paid out”) arrives through a PayPal webhook. The mock backend has no simulator for it, so in mock
             mode payouts honestly stay at “Submitted to PayPal”.
           </p>
         </div>
       )}
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex h-9 items-center gap-2 rounded-full border border-dashed border-warning/60 bg-warning-soft px-3.5 text-[13px] font-semibold text-warning shadow-2"
+      >
+        <FlaskConical aria-hidden className="size-4" />
+        Demo helper
+        <ChevronDown aria-hidden className={`size-4 transition-transform ${open ? "" : "rotate-180"}`} />
+      </button>
     </section>
   );
 }
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-card)] bg-surface p-3">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-2 p-3">
       <p className="text-[13px] font-semibold">
         <span className="mr-1 text-muted">{n}.</span>
         {title}
@@ -74,7 +94,7 @@ function SeedContacts() {
   const run = async () => {
     setBusy(true);
     const wanted = [
-      ...(have.has("john@example.com") ? [] : [{ name: "John Doe", email: "john@example.com", role: "client" as const, aliases: [] }]),
+      ...(have.has("daniel.carter@example.com") ? [] : [{ name: "Daniel Carter", email: "daniel.carter@example.com", role: "client" as const, aliases: [] }]),
       ...(hasSarah || !sarahEmail.trim() ? [] : [{ name: "Sarah", email: sarahEmail.trim(), role: "contractor" as const, aliases: ["my editor"] }]),
     ];
     let added = 0;
@@ -94,7 +114,7 @@ function SeedContacts() {
 
   return (
     <Step n={1} title="Add demo contacts">
-      <p className="text-[13px] text-muted">John Doe (client){hasSarah ? " and Sarah are" : " is"} set up via the real contacts API.</p>
+      <p className="text-[13px] text-muted">Daniel Carter (client){hasSarah ? " and Sarah are" : " is"} set up via the real contacts API.</p>
       {!hasSarah && (
         <TextField label="Sarah's PayPal email" type="email" placeholder="sarah@personal.example.com" value={sarahEmail} onChange={(e) => setSarahEmail(e.target.value)} hint="Use a PayPal sandbox personal account." />
       )}
@@ -105,19 +125,24 @@ function SeedContacts() {
   );
 }
 
-function SendPrompt() {
-  const { send, busy } = useAgent();
+function SendPrompt({ onDone }: { onDone: () => void }) {
+  const { send, busy, setSheetOpen } = useAgent();
   return (
     <Step n={2} title="Send Kwame's request">
-      <p className="text-[13px] text-muted">Runs the real agent: a PayPal invoice for John and a locked 20% payout for Sarah.</p>
-      <Button size="sm" variant="primary" disabled={busy} onClick={() => void send(DEMO_PROMPT)}>
+      <p className="text-[13px] text-muted">Runs the real agent: a PayPal invoice for Daniel and a locked 20% payout for Sarah.</p>
+      <Button size="sm" variant="primary" disabled={busy} onClick={() => {
+          onDone();
+          setSheetOpen(true);
+          void send(DEMO_PROMPT);
+        }}
+      >
         Send demo prompt
       </Button>
     </Step>
   );
 }
 
-function SimulatePayment() {
+function SimulatePayment({ onDone }: { onDone: () => void }) {
   const toast = useToast();
   const qc = useQueryClient();
   const invoices = useInvoices();
@@ -133,6 +158,7 @@ function SimulatePayment() {
     setBusy(true);
     try {
       await api.dev.simulatePaid(target);
+      onDone();
       void qc.invalidateQueries({ queryKey: qk.invoices });
       void qc.invalidateQueries({ queryKey: qk.actions });
       setChoice("");

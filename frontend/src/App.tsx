@@ -11,7 +11,7 @@ import { Dashboard } from "@/features/dashboard/Dashboard";
 import { PayeesPage } from "@/features/payees/PayeesPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { ApiError } from "@/lib/api";
-import { useApplyTheme } from "@/lib/settings";
+import { useApplyLang, useApplyTheme } from "@/lib/settings";
 import { FullPageSkeleton } from "@/components/ui/Skeleton";
 import { LandingPage } from "@/pages/LandingPage";
 import { ResetPasswordPage, SignInPage, SignUpPage, UpdatePasswordPage } from "@/pages/AuthPages";
@@ -32,6 +32,7 @@ const queryClient = new QueryClient({
 
 export function App() {
   useApplyTheme();
+  useApplyLang();
   return (
     <ErrorBoundary region="app" className="m-6 rounded-[var(--radius-card)] border border-border bg-surface p-6">
       <QueryClientProvider client={queryClient}>

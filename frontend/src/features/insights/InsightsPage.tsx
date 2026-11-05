@@ -82,13 +82,13 @@ export default function InsightsPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border bg-surface px-4 py-3 sm:px-6">
+    <div className="flex flex-col">
+      <header className="mx-auto flex w-full max-w-[1320px] flex-wrap items-end gap-3 px-4 pt-8 pb-5 sm:px-6">
         <div className="mr-auto">
-          <h1 className="flex items-center gap-2 text-[20px] font-semibold">
-            <BarChart3 aria-hidden className="size-5 text-accent" /> Insights
+          <h1 className="display flex items-center gap-2 text-[36px]">
+            <BarChart3 aria-hidden className="size-6 text-[var(--chart-money)]" /> Insights
           </h1>
-          <p className="text-[13px] text-muted">Self-serve dashboards on your invoices, payouts and agent activity. Built with AG Studio.</p>
+          <p className="mt-1 text-[14px] text-muted">Build your own views of invoices, payouts and assistant activity. Drag, resize and save. Powered by AG Studio.</p>
         </div>
         {env.enableDemo && (
           <label className="inline-flex items-center gap-2 rounded-full border border-dashed border-warning/60 bg-warning-soft/50 px-3 py-1.5 text-[13px]">
@@ -114,7 +114,7 @@ export default function InsightsPage() {
           </>
         )}
       </header>
-      <div className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2 sm:px-6">
+      <div className="flex items-center gap-3 border-y border-border bg-surface px-4 py-2.5 sm:px-6">
         <Segmented
           idPrefix="insights"
           label="Dashboard pages"
@@ -128,7 +128,7 @@ export default function InsightsPage() {
           </span>
         )}
       </div>
-      <div role="tabpanel" id={`insights-panel-${selectedPage}`} aria-labelledby={`insights-tab-${selectedPage}`} className="min-h-[640px] flex-1">
+      <div role="tabpanel" id={`insights-panel-${selectedPage}`} aria-labelledby={`insights-tab-${selectedPage}`} className="h-[calc(100dvh-13rem)] min-h-[640px]">
         {loading ? (
           <SkeletonRows rows={10} label="Loading insights" />
         ) : (

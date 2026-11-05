@@ -13,7 +13,7 @@ interface BaseProps {
   locked?: boolean;
 }
 
-const overlay = "fixed inset-0 z-50 bg-black/40 animate-in";
+const overlay = "fixed inset-0 z-50 bg-[rgb(7_17_12/0.45)] backdrop-blur-[2px] animate-in";
 
 export function Modal({ open, onOpenChange, title, description, children, locked, className }: BaseProps & { className?: string }) {
   return (
@@ -24,14 +24,14 @@ export function Modal({ open, onOpenChange, title, description, children, locked
           onEscapeKeyDown={(e) => locked && e.preventDefault()}
           onPointerDownOutside={(e) => locked && e.preventDefault()}
           className={cn(
-            "animate-in fixed z-50 flex max-h-[92dvh] flex-col overflow-hidden bg-surface shadow-2",
+            "pop-in fixed z-50 flex max-h-[92dvh] flex-col overflow-hidden border border-border bg-surface shadow-float",
             "inset-x-0 bottom-0 rounded-t-[var(--radius-sheet)] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-[min(32rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[var(--radius-sheet)]",
             className,
           )}
         >
           <header className="flex items-start gap-3 border-b border-border px-5 py-4">
             <div className="min-w-0 flex-1">
-              <RD.Title className="text-lg font-semibold">{title}</RD.Title>
+              <RD.Title className="display text-[22px]">{title}</RD.Title>
               {description ? (
                 <RD.Description className="mt-0.5 text-muted">{description}</RD.Description>
               ) : (
@@ -59,13 +59,13 @@ export function Drawer({ open, onOpenChange, title, description, children, wide 
         <RD.Overlay className={overlay} />
         <RD.Content
           className={cn(
-            "slide-in-right fixed inset-0 z-50 flex flex-col bg-surface shadow-2 sm:inset-y-0 sm:right-0 sm:left-auto sm:border-l sm:border-border",
+            "slide-in-right fixed inset-0 z-50 flex flex-col bg-surface shadow-float sm:inset-y-2 sm:right-2 sm:left-auto sm:overflow-hidden sm:rounded-[var(--radius-sheet)] sm:border sm:border-border",
             wide ? "sm:w-[34rem]" : "sm:w-[28rem]",
           )}
         >
           <header className="flex items-start gap-3 border-b border-border px-5 py-4">
             <div className="min-w-0 flex-1">
-              <RD.Title className="text-lg font-semibold">{title}</RD.Title>
+              <RD.Title className="display text-[22px]">{title}</RD.Title>
               {description ? (
                 <RD.Description className="mt-0.5 text-muted">{description}</RD.Description>
               ) : (

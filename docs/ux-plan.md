@@ -32,8 +32,8 @@ button. Below 768px, grids become card lists and the nav becomes a bottom-safe t
     Input disabled, Stop button shown, user bubble appears.
     Step trace (live from realtime activity_log, agent.* events):
       ✓ Understood request
-      ✓ Found contact "John Doe"
-      ✓ Sent $1,200.00 invoice to John Doe
+      ✓ Found contact "Daniel Carter"
+      ✓ Sent $1,200.00 invoice to Daniel Carter
       ✓ Found contact "my editor" -> Sarah
       ✓ Scheduled payout: Sarah $240.00 upon settlement
       … Writing reply
@@ -42,26 +42,26 @@ button. Below 768px, grids become card lists and the nav becomes a bottom-safe t
 [3] Response arrives
     Reply text (aria-live) + action cards built from tool_calls:
       ┌ Invoice sent ───────────────────────── ✓ Sent ┐
-      │ John Doe · Q3 Video Campaign                   │
+      │ Daniel Carter · Q3 Video Campaign                   │
       │ $1,200.00 USD · Due 5 Nov 2026                 │
       │ [Open invoice]                                 │
       └────────────────────────────────────────────────┘
       ┌ Payout scheduled ──────────────────── 🔒 Locked ┐
       │ Sarah · $240.00 USD (20%)                       │
-      │ Unlocks when John Doe's invoice is paid,        │
+      │ Unlocks when Daniel Carter's invoice is paid,        │
       │ then needs your approval.                       │
       │ [View in Payouts]                               │
       └─────────────────────────────────────────────────┘
     Dashboard rows flash in (AG Grid transaction): Invoice in "Awaiting payment"; payout in Payouts, locked.
 
 [4] Client pays (webhook, or the Demo helper's "Simulate client payment" -> /dev/simulate-paid)
-    Invoice row flashes, moves to "Paid" group. Toast: "John Doe paid $1,200.00".
+    Invoice row flashes, moves to "Paid" group. Toast: "Daniel Carter paid $1,200.00".
     Payout row: 🔒 Locked -> ⏳ Needs approval. Header badge: Needs your approval (1).
 
 [5] Kwame opens the approval (badge, row, or card)
     Modal: "This will send $240.00 USD to Sarah via PayPal."
-      Recipient: Sarah <email> · Amount · Trigger: John Doe invoice (Paid) · Proposed by: PaySasa agent,
-      from "Send an invoice to John…" · Fees: deducted by PayPal if any (not shown by PayPal in advance)
+      Recipient: Sarah <email> · Amount · Trigger: Daniel Carter invoice (Paid) · Proposed by: PaySasa agent,
+      from "Send an invoice to Daniel…" · Fees: deducted by PayPal if any (not shown by PayPal in advance)
       [Reject…] [Approve and send]
     Above the threshold: a second step, "Type the amount to confirm" or a second "Yes, send $X" button.
 

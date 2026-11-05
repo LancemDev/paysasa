@@ -4,11 +4,11 @@ import { actionCardsFromToolCalls, detectClarification, stepsFromToolCalls } fro
 
 // Shape recorded in agent_runs.tool_calls by backend/server/app/agent/run.py for the Kwame demo.
 const kwame: ToolCallLog[] = [
-  { name: "find_contact", args: { query: "John Doe" }, result: { matches: [{ contact_id: "c1", name: "John Doe", email: "john@example.com", role: "client", aliases: [] }], count: 1 } },
+  { name: "find_contact", args: { query: "Daniel Carter" }, result: { matches: [{ contact_id: "c1", name: "Daniel Carter", email: "daniel.carter@example.com", role: "client", aliases: [] }], count: 1 } },
   {
     name: "send_invoice",
     args: { contact_id: "c1", description: "Q3 Video Campaign", amount: "1200.00", currency: "USD" },
-    result: { invoice_id: "inv-1", status: "sent", contact: "John Doe", amount: "$1,200.00", currency: "USD", due_date: "2026-11-05" },
+    result: { invoice_id: "inv-1", status: "sent", contact: "Daniel Carter", amount: "$1,200.00", currency: "USD", due_date: "2026-11-05" },
   },
   { name: "find_contact", args: { query: "my editor" }, result: { matches: [{ contact_id: "c2", name: "Sarah", email: "s@x.com", role: "contractor", aliases: ["my editor"] }], count: 1 } },
   {
@@ -21,8 +21,8 @@ const kwame: ToolCallLog[] = [
 describe("step trace", () => {
   it("turns tool calls into readable steps", () => {
     expect(stepsFromToolCalls(kwame).map((s) => s.label)).toEqual([
-      "Found contact John Doe",
-      "Sent $1,200.00 invoice to John Doe",
+      "Found contact Daniel Carter",
+      "Sent $1,200.00 invoice to Daniel Carter",
       "Found contact Sarah",
       "Scheduled payout to Sarah: $240.00, locked until paid",
     ]);

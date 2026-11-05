@@ -1,0 +1,25 @@
+# Keeps the hosted demo warm for judges until judging ends (15 Dec 2026).
+# Render's free web services sleep after ~15 minutes idle; a cold start can take a minute.
+name: Keep demo alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Stop after judging ends
+        id: window
+        run: |
+          if [ "$(date -u +%Y%m%d)" -gt "20261215" ]; then echo "active=false" >> "$GITHUB_OUTPUT"; else echo "active=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Ping backend and frontend
+        if: steps.window.outputs.active == 'true'
+        run: |
+          for url in https://paysasa.onrender.com/health https://paysasa-frontend.onrender.com/; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --retry 3 --retry-delay 20 --max-time 90 "$url")
+            echo "$url -> $code"
+          done

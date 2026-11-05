@@ -10,7 +10,7 @@ const palette = Object.fromEntries(
     [`chartPaletteStrokes${i + 1}Color`, v(`chart-${i + 1}`)],
   ]).flat(),
 );
-const FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const FONT = '"Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
 
 export const paysasaStudioTheme = studioTheme.withParams({
   fontFamily: FONT,

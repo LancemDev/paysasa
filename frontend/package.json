@@ -23,6 +23,7 @@
     "ag-studio": "^3.0.0",
     "ag-studio-react": "^3.0.0",
     "lucide-react": "^1.61.0",
+    "motion": "^12.43.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4"

@@ -132,7 +132,7 @@ export function detectClarification(reply: string, calls: ToolCallLog[]): Clarif
 }
 
 export const DEMO_PROMPT =
-  "Send an invoice to John Doe (john@example.com) for $1,200 for the Q3 Video Campaign. Once paid, schedule a payout of 20% to my editor, Sarah.";
+  "Send an invoice to Daniel Carter (daniel.carter@example.com) for $1,200 for the Q3 Video Campaign. Once paid, schedule a payout of 20% to my editor, Sarah.";
 
 export const SUGGESTED_PROMPTS: { label: string; prompt: string }[] = [
   { label: "Invoice a client", prompt: "Invoice " },

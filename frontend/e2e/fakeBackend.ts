@@ -12,7 +12,7 @@ export function createFakeBackend(page: Page) {
   const db = {
     profiles: [{ id: USER.id, display_name: "Kwame", default_currency: "USD", created_at: now() }],
     contacts: [
-      { id: uuid(), owner_id: USER.id, name: "John Doe", email: "john@example.com", role: "client", aliases: [], created_at: now() },
+      { id: uuid(), owner_id: USER.id, name: "Daniel Carter", email: "daniel.carter@example.com", role: "client", aliases: [], created_at: now() },
       { id: uuid(), owner_id: USER.id, name: "Sarah", email: "sarah@sandbox.example.com", role: "contractor", aliases: ["my editor"], created_at: now() },
     ] as Record<string, unknown>[],
     invoices: [] as Record<string, unknown>[],
@@ -63,16 +63,16 @@ export function createFakeBackend(page: Page) {
       const actionId = uuid();
       const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
       const calls = [
-        { name: "find_contact", args: { query: "John Doe" }, result: { matches: [{ contact_id: john.id, name: "John Doe", email: john.email, role: "client", aliases: [] }], count: 1 } },
-        { name: "send_invoice", args: { contact_id: john.id, description: "Q3 Video Campaign", amount: "1200.00", currency: "USD" }, result: { invoice_id: invoiceId, status: "sent", contact: "John Doe", amount: "$1,200.00", currency: "USD", due_date: due } },
+        { name: "find_contact", args: { query: "Daniel Carter" }, result: { matches: [{ contact_id: john.id, name: "Daniel Carter", email: john.email, role: "client", aliases: [] }], count: 1 } },
+        { name: "send_invoice", args: { contact_id: john.id, description: "Q3 Video Campaign", amount: "1200.00", currency: "USD" }, result: { invoice_id: invoiceId, status: "sent", contact: "Daniel Carter", amount: "$1,200.00", currency: "USD", due_date: due } },
         { name: "find_contact", args: { query: "my editor" }, result: { matches: [{ contact_id: sarah.id, name: "Sarah", email: sarah.email, role: "contractor", aliases: ["my editor"] }], count: 1 } },
         { name: "schedule_payout", args: { trigger_invoice_id: invoiceId, payee_contact_id: sarah.id, split_percent: 20 }, result: { action_id: actionId, status: "locked", summary: "Payout Sarah $240.00 upon settlement", amount: "$240.00", payee: "Sarah", needs_approval: true } },
       ];
       db.invoices.unshift({ id: invoiceId, owner_id: USER.id, contact_id: john.id, paypal_invoice_id: "INV2-MOCK-0001", description: "Q3 Video Campaign", amount_minor: 120000, currency: "USD", status: "sent", paypal_status: "SENT", due_date: due, sent_at: now(), paid_at: null, last_reminder_at: null, error: null, agent_run_id: runId, created_at: now(), updated_at: now() });
-      log("agent", "invoice.sent", "Sent John Doe a $1,200.00 invoice for Q3 Video Campaign", "invoice", invoiceId);
+      log("agent", "invoice.sent", "Sent Daniel Carter a $1,200.00 invoice for Q3 Video Campaign", "invoice", invoiceId);
       db.pending_actions.unshift({ id: actionId, owner_id: USER.id, type: "payout", status: "locked", trigger_invoice_id: invoiceId, payee_contact_id: sarah.id, amount_minor: 24000, currency: "USD", split_percent: 20, summary: "Payout Sarah $240.00 upon settlement", draft_message: null, idempotency_key: `payout-${actionId}`, paypal_payout_batch_id: null, error: null, decided_at: null, executed_at: null, agent_run_id: runId, created_at: now(), updated_at: now() });
       log("agent", "payout.scheduled", "Payout Sarah $240.00 upon settlement", "pending_action", actionId);
-      const reply = "Sent John Doe a $1,200.00 invoice for the Q3 Video Campaign. Sarah's $240.00 payout is locked until John pays, then it needs your approval.";
+      const reply = "Sent Daniel Carter a $1,200.00 invoice for the Q3 Video Campaign. Sarah's $240.00 payout is locked until Daniel pays, then it needs your approval.";
       db.agent_runs.unshift({ id: runId, owner_id: USER.id, user_message: message, reply, tool_calls: calls, status: "completed", error: null, created_at: now() });
       await new Promise((r) => setTimeout(r, 400));
       return json(route, { run_id: runId, reply });
@@ -83,7 +83,7 @@ export function createFakeBackend(page: Page) {
       const inv = db.invoices.find((i) => i.id === paid[1]);
       if (!inv) return json(route, { error: { code: "not_found", message: "Invoice not found" } }, 404);
       Object.assign(inv, { status: "paid", paid_at: now(), paypal_status: "PAID", updated_at: now() });
-      log("system", "invoice.paid", "John Doe paid $1,200.00 for Q3 Video Campaign", "invoice", String(inv.id));
+      log("system", "invoice.paid", "Daniel Carter paid $1,200.00 for Q3 Video Campaign", "invoice", String(inv.id));
       for (const a of db.pending_actions.filter((a) => a.trigger_invoice_id === inv.id && a.status === "locked")) {
         Object.assign(a, { status: "awaiting_approval", summary: "Payout Sarah $240.00", updated_at: now() });
         log("system", "payout.unlocked", "Payout Sarah $240.00 unlocked: needs your approval", "pending_action", String(a.id));
@@ -106,7 +106,17 @@ export function createFakeBackend(page: Page) {
 
   return {
     db,
-    async install() {
+    async install({ tour = false }: { tour?: boolean } = {}) {
+      // The first-login welcome tour is covered by its own test; skip it elsewhere (keeps other saved settings).
+      if (!tour)
+        await page.addInitScript(() => {
+          try {
+            const k = "paysasa.settings.v1";
+            localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? "{}"), setupDone: true }));
+          } catch {
+            /* ignore */
+          }
+        });
       await page.route("http://supabase.paysasa.test/**", supabase);
       await page.route("http://api.paysasa.test/**", api);
       // No realtime server in this test: the app must fall back to refetching.

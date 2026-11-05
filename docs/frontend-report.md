@@ -111,20 +111,20 @@ Setup:
 Auth and first run:
 - [ ] Wrong password shows a friendly error. Sign-in lands on the Dashboard with the test-mode banner visible.
 - [ ] The connection indicator shows **Live** within a few seconds. If it shows "Refreshing every 15s", realtime isn't reaching the browser: check the Supabase realtime publication and RLS.
-- [ ] The Get started checklist shows "server connected". The Payees page lists John Doe and Sarah ("my editor").
+- [ ] The Get started checklist shows "server connected". The Payees page lists Daniel Carter and Sarah ("my editor").
 
 The Kwame story:
 - [ ] Tap "Kwame's request". Steps appear while it runs, the reply arrives, and the invoice and payout cards render with **Awaiting payment** and **Locked**.
 - [ ] The Invoices grid shows the row under **Awaiting payment** with a flash, and the totals read $1,200.00.
 - [ ] The Payouts tab shows the payout under **Locked until paid**, and the trigger link opens the invoice drawer.
-- [ ] Demo helper → Mark as paid. **Without reloading**, the invoice flashes into **Paid**, the toast "John Doe paid $1,200.00" appears, and the header shows **Needs your approval (1)**.
+- [ ] Demo helper → Mark as paid. **Without reloading**, the invoice flashes into **Paid**, the toast "Daniel Carter paid $1,200.00" appears, and the header shows **Needs your approval (1)**.
 - [ ] The approval modal shows "$240.00 USD to Sarah", her email, "Triggered by" with the Paid badge, and "Proposed by" with the original prompt.
 - [ ] Double-clicking Approve sends one request (check the network tab). The modal shows **Submitted to PayPal** with the batch ID.
 - [ ] Re-opening the same payout shows its current state, not the approve button.
 
 Edge cases:
 - [ ] Send "Invoice Mary $50", which has no email. The agent asks for the email, the input is focused and the placeholder asks for it.
-- [ ] Send "Invoice John 500 KES". The agent explains the supported currencies, and no invoice is created.
+- [ ] Send "Invoice Daniel 500 KES". The agent explains the supported currencies, and no invoice is created.
 - [ ] Stop the backend and send a message. A friendly error appears, the input is kept, and Try again works after a restart.
 - [ ] Go offline in DevTools. The indicator shows Offline, sending is disabled, and the data stays on screen.
 - [ ] Settings: set the threshold to 100.00. Approving a $240 payout then asks for a second confirmation.

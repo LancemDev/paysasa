@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createFakeBackend } from "./fakeBackend";
 
-test("Kwame: prompt → invoice + locked payout → client pays → approve payout", async ({ page }, testInfo) => {
-  const mobile = testInfo.project.name === "mobile";
+test("Kwame: prompt → invoice + locked payout → client pays → approve payout", async ({ page }) => {
   const backend = createFakeBackend(page);
   await backend.install();
 
@@ -19,17 +18,18 @@ test("Kwame: prompt → invoice + locked payout → client pays → approve payo
   await expect(page.getByText("No invoices yet")).toBeVisible();
 
   // 1-2. Send the demo prompt from the agent panel
-  if (mobile) await page.getByRole("button", { name: "Ask PaySasa" }).click();
+  // The assistant is a pop-up on every screen size now.
+  await page.getByRole("button", { name: "Ask PaySasa" }).click();
   const agent = page.getByRole("region", { name: "PaySasa assistant" });
   await agent.getByRole("button", { name: /Kwame's request/ }).click();
-  await expect(agent.getByText(/Sent John Doe a \$1,200\.00 invoice/).first()).toBeVisible();
+  await expect(agent.getByText(/Sent Daniel Carter a \$1,200\.00 invoice/).first()).toBeVisible();
 
   // 3. Structured action cards: invoice sent, payout locked
   await expect(agent.getByRole("heading", { name: "Invoice sent via PayPal" })).toBeVisible();
-  await expect(agent.getByText("Unlocks when John Doe's invoice ($1,200.00) is paid")).toBeVisible();
+  await expect(agent.getByText("Unlocks when Daniel Carter's invoice ($1,200.00) is paid")).toBeVisible();
   await expect(agent.getByText("Locked", { exact: true })).toBeVisible();
   await expect(agent.getByText("Scheduled payout to Sarah: $240.00, locked until paid")).toBeVisible();
-  if (mobile) await page.getByRole("button", { name: "Close assistant" }).click();
+  await page.getByRole("button", { name: "Close assistant" }).click();
 
   // Dashboard shows the invoice under Awaiting payment
   await expect(page.getByText("Awaiting payment").first()).toBeVisible();

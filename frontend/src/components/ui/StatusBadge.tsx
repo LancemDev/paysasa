@@ -1,5 +1,6 @@
 import { AlertCircle, Ban, Check, Clock, Hourglass, Loader2, Lock, Pencil, Send, X, type LucideIcon } from "lucide-react";
 import type { StatusDisplay, StatusIcon, Tone } from "@/lib/status";
+import { useStatusLabel } from "@/lib/i18n";
 import { cn } from "./cn";
 
 const ICONS: Record<StatusIcon, LucideIcon> = {
@@ -27,17 +28,18 @@ const TONES: Record<Tone, string> = {
 /** Status is always icon + text + colour, never colour alone. */
 export function StatusBadge({ status, className, size = "md" }: { status: StatusDisplay; className?: string; size?: "sm" | "md" }) {
   const Icon = ICONS[status.icon];
+  const label = useStatusLabel();
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1 rounded-full font-medium whitespace-nowrap ring-1 ring-current/10 ring-inset",
         size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-0.5 text-[13px]",
         TONES[status.tone],
         className,
       )}
     >
       <Icon aria-hidden className={cn("size-3.5 shrink-0", status.icon === "loader" && "animate-spin")} />
-      {status.label}
+      {label(status.label)}
     </span>
   );
 }

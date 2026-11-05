@@ -10,20 +10,22 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/components/ui/cn";
 import { ApiError, api } from "@/lib/api";
 import { qk, upsertInCache, useContacts } from "@/lib/queries";
+import { useT } from "@/lib/i18n";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export function PayeesPage() {
+  const t = useT();
   const contacts = useContacts();
   const list = contacts.data ?? [];
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-6 p-4 sm:p-6 lg:grid-cols-[1fr_22rem]">
-      <div className="flex flex-col gap-4">
+    <div className="mx-auto grid w-full max-w-5xl gap-5 px-4 pt-8 sm:px-6 lg:grid-cols-[1fr_22rem]">
+      <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-[22px] font-semibold">Contacts and payees</h1>
-          <p className="text-muted">Clients you invoice and contractors you pay. PaySasa matches names and nicknames like “my editor”.</p>
+          <h1 className="display text-[36px]">{t("payees.title")}</h1>
+          <p className="mt-1 text-[15px] text-muted">{t("payees.sub")}</p>
         </div>
-        <section className="rounded-[var(--radius-card)] border border-border bg-surface shadow-1" aria-label="Contacts">
+        <section className="card overflow-hidden" aria-label="Contacts">
           {contacts.isLoading ? (
             <SkeletonRows rows={4} label="Loading contacts" />
           ) : contacts.isError ? (
@@ -49,7 +51,7 @@ export function PayeesPage() {
 function ContactRow({ contact: c }: { contact: Contact }) {
   return (
     <li className="flex flex-wrap items-center gap-3 p-4">
-      <span aria-hidden className="grid size-9 place-items-center rounded-full bg-accent-soft font-semibold text-accent">
+      <span aria-hidden className="grid size-10 place-items-center rounded-full bg-forest font-[family-name:var(--font-display)] text-[17px] text-lime">
         {c.name.slice(0, 1).toUpperCase()}
       </span>
       <div className="min-w-0 flex-1">
@@ -57,7 +59,7 @@ function ContactRow({ contact: c }: { contact: Contact }) {
         <p className="text-[13px] break-all text-muted">{c.email}</p>
         {c.aliases.length > 0 && <p className="text-[13px] text-muted">Also known as: {c.aliases.join(", ")}</p>}
       </div>
-      <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", c.role === "contractor" ? "bg-info-soft text-info" : "bg-surface-2 text-muted")}>
+      <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", c.role === "contractor" ? "bg-lime-soft text-forest dark:text-lime" : "bg-surface-2 text-muted")}>
         {c.role === "contractor" ? "Contractor (can be paid)" : "Client"}
       </span>
     </li>
@@ -106,7 +108,7 @@ function AddContactForm() {
   };
 
   return (
-    <form onSubmit={submit} noValidate className="flex h-fit flex-col gap-4 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-1" aria-labelledby="add-h">
+    <form onSubmit={submit} noValidate className="card flex h-fit flex-col gap-4 p-5 lg:sticky lg:top-24" aria-labelledby="add-h">
       <h2 id="add-h" className="flex items-center gap-2 font-semibold">
         <UserPlus aria-hidden className="size-4" /> Add a contact
       </h2>
@@ -124,7 +126,7 @@ function AddContactForm() {
         <legend className="mb-1.5 font-medium">Role</legend>
         <div className="grid grid-cols-2 gap-2">
           {(["contractor", "client"] as const).map((r) => (
-            <label key={r} className={cn("flex cursor-pointer items-center gap-2 rounded-[var(--radius-input)] border p-2.5", role === r ? "border-accent bg-accent-soft" : "border-border-strong")}>
+            <label key={r} className={cn("flex cursor-pointer items-center gap-2 rounded-[var(--radius-input)] border p-2.5", role === r ? "border-forest bg-lime-soft font-medium dark:border-lime" : "border-border hover:border-border-strong")}>
               <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="accent-[var(--accent)]" />
               {r === "contractor" ? "Contractor" : "Client"}
             </label>

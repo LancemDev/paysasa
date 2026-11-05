@@ -35,7 +35,7 @@ export function Segmented<K extends string>({
     }
   };
   return (
-    <div role="tablist" aria-label={label} className="inline-flex max-w-full overflow-x-auto rounded-[var(--radius-card)] bg-surface-2 p-1">
+    <div role="tablist" aria-label={label} className="inline-flex max-w-full overflow-x-auto rounded-full border border-border bg-surface-2 p-1">
       {items.map((item, i) => {
         const selected = item.key === value;
         return (
@@ -53,8 +53,8 @@ export function Segmented<K extends string>({
             onClick={() => onChange(item.key)}
             onKeyDown={(e) => onKey(e, i)}
             className={cn(
-              "inline-flex h-8 items-center gap-2 rounded-[7px] px-3 text-[13px] font-medium whitespace-nowrap transition-colors",
-              selected ? "bg-surface text-fg shadow-1" : "text-muted hover:text-fg",
+              "inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors",
+              selected ? "bg-surface text-fg shadow-[0_1px_2px_rgb(14_26_20/0.08),0_0_0_1px_var(--border)]" : "text-muted hover:text-fg",
             )}
           >
             {item.label}
