@@ -290,6 +290,7 @@ The end-to-end tests run against an in-browser fake of the backend and Supabase 
 - **Ian Karanja** ([@iankaranja13](https://github.com/iankaranja13))
 - **Lance Munyao** ([@LancemDev](https://github.com/LancemDev))
 - **Kevin Ojwang** ([@Kevin-0j](https://github.com/Kevin-0j))
+- **Goretti Giciriri** ([@giciriri](https://github.com/giciriri))
 
 Built in Nairobi for the PayPal AI Hackathon 2026.
 
