@@ -14,7 +14,7 @@ An AI payments assistant for African freelancers. One sentence sends a PayPal in
 ![PayPal Invoicing · Payouts · Webhooks](https://img.shields.io/badge/PayPal-Invoicing%20%C2%B7%20Payouts%20%C2%B7%20Webhooks-003087)
 ![Claude tool use](https://img.shields.io/badge/AI-Claude%20tool%20use-c8f169)
 ![AG Grid + AG Studio](https://img.shields.io/badge/AG%20Grid-%2B%20AG%20Studio-1f8a54)
-![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA%20(axe)-0b3d2c)
+![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA%20%C2%B7%20voice%20%C2%B7%20high%20contrast-0b3d2c)
 ![English · Kiswahili](https://img.shields.io/badge/lang-English%20%C2%B7%20Kiswahili-0b3d2c)
 
 <img src="docs/screenshots/landing.png" alt="PaySasa landing page: 'Get paid by clients abroad. Pay your team. Skip the admin.' beside a wallet of PayPal invoice cards" width="100%" />
@@ -149,23 +149,39 @@ All PayPal calls go through one interface, `PayPalAdapter` in [`paypal_contract.
 
 ---
 
-## Design, accessibility and language
+## Built for everyone: accessibility and inclusion
 
-- **Visual design:** "ledger on paper".
-  - A warm paper canvas, forest ink and one lime accent saved for the main action.
-  - Fraunces for headings and Geist for UI and numbers.
-  - Hairline cards instead of heavy shadows.
-  - The rationale and the references we adapted are in [`docs/design-revamp.md`](docs/design-revamp.md).
-- **Usability:**
-  - The assistant is a pop-up (⌘K, the header button or the mobile centre tab), so the dashboard keeps its full width.
-  - Grids size to their data.
-  - The first-login welcome and spotlight tour can be replayed at any time.
-- **Accessibility:**
-  - **axe reports 0 WCAG 2.1 A/AA violations** in light and dark mode on the landing, sign-in, dashboard, approval dialog, Insights and welcome tour.
-  - Status is always icon + text + colour.
-  - Full keyboard support, focus management in dialogs and the tour, and reduced-motion support.
-  - No sideways scrolling at 360px.
-- **Languages:** English and **Kiswahili**, which has over 100 million speakers across East and Central Africa. The switch covers the landing page, navigation, dashboard, assistant, approvals, status labels and the tour. It's saved per device and sets `<html lang>`.
+People with disabilities run businesses too, as freelancers, designers, writers, translators and consultants. A payments tool that only works for some people shuts the rest out of earning, so we designed PaySasa to be usable by everyone, on any device.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/accessibility-menu.png" alt="Display and accessibility menu with theme, text size, high contrast and reduce motion" /></td>
+<td width="50%"><img src="docs/screenshots/high-contrast-dark.png" alt="Dashboard in dark mode with high contrast and large text" /></td>
+</tr>
+<tr>
+<td><b>Display and accessibility menu</b>, one tap from every page.</td>
+<td><b>Dark mode with high contrast and large text.</b></td>
+</tr>
+</table>
+
+| Who it helps | What PaySasa does |
+|---|---|
+| **Blind and low-vision users** | Works with screen readers: landmarks, labelled controls, live announcements for agent steps and payments, and status always as icon + text + colour. **Larger text** (up to 125%) and **high contrast** mode (body text at 9–14:1, which meets WCAG AAA). Light, dark or match-device theme. |
+| **People with motor impairments** | Full keyboard use: ⌘K / Ctrl K opens the assistant, arrow keys move through tabs and the tour, Esc closes everything, and focus is managed in dialogs. Large touch targets. **Voice input** means you can speak a request instead of typing it. |
+| **People with vestibular or attention disorders** | **Reduce motion** turns off animation, even if the device allows it. It follows the OS setting by default. One clear next step at a time. |
+| **People with cognitive or learning disabilities, or low literacy** | Plain words, no jargon. One sentence does the work, and a guided first-login tour explains each area. Every payout is a single screen that says who, how much and why. Voice input helps here too. |
+| **People who think in Kiswahili** | The whole interface is in English or Kiswahili. Voice input listens in Kiswahili (`sw-KE`), and the assistant replies in your language. |
+
+**How we checked it:**
+- **Automated checks:** axe reports **0 WCAG 2.1 A/AA violations** in light, dark and high-contrast modes, with large text. It covers the landing, sign-in, dashboard, approval dialog, Insights and welcome tour.
+- **Layout:** no sideways scrolling at 360px.
+- **Tests:** every accessibility setting is covered by an end-to-end test, and the settings survive a reload.
+
+**Design and usability:**
+- **Visual design:** "ledger on paper". A warm paper canvas, forest ink and one lime accent saved for the main action. Fraunces for headings, Geist for UI and numbers. The reasoning is in [`docs/design-revamp.md`](docs/design-revamp.md).
+- **Assistant:** a pop-up (⌘K, the header button or the mobile centre tab), so the dashboard keeps its full width.
+- **Grids:** they size to their data.
+- **Tour:** the first-login tour can be replayed at any time.
 
 ---
 
@@ -253,7 +269,7 @@ All environment variables are documented in [`backend/README.md`](backend/README
 cd frontend
 npm test                          # 42 unit/component tests: approval flow, money, status, agent parsing
 npx playwright install chromium   # once
-npm run e2e                       # the Kwame flow (desktop + mobile), axe WCAG A/AA (light + dark), 360px, first-login tour
+npm run e2e                       # the Kwame flow (desktop + mobile), axe WCAG A/AA (light, dark, high contrast), 360px, tour, accessibility settings
 
 cd backend/server
 TEST_DATABASE_URL=postgresql://postgres@localhost:5432/postgres .venv/bin/python -m pytest

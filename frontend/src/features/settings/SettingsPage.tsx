@@ -10,6 +10,7 @@ import { formatMoney, minorToDecimalString } from "@/lib/money";
 import { useProfile } from "@/lib/queries";
 import { useSettings, type Settings } from "@/lib/settings";
 import { LangSwitch } from "@/components/layout/LangSwitch";
+import { AccessibilityMenu } from "@/components/layout/DisplayControls";
 import { useT } from "@/lib/i18n";
 
 export function SettingsPage() {
@@ -81,12 +82,51 @@ export function SettingsPage() {
         </div>
       </Section>
 
+      <Section title="Accessibility">
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center justify-between gap-3">
+            <span>
+              <span className="block font-medium">High contrast</span>
+              <span className="text-[13px] text-muted">Darker text and stronger borders.</span>
+            </span>
+            <input type="checkbox" className="size-5 accent-[var(--accent)]" checked={settings.highContrast} onChange={(e) => update({ highContrast: e.target.checked })} />
+          </label>
+          <label className="flex items-center justify-between gap-3">
+            <span>
+              <span className="block font-medium">Reduce motion</span>
+              <span className="text-[13px] text-muted">Turns off animations, even if your device allows them.</span>
+            </span>
+            <input type="checkbox" className="size-5 accent-[var(--accent)]" checked={settings.reduceMotion} onChange={(e) => update({ reduceMotion: e.target.checked })} />
+          </label>
+          <fieldset>
+            <legend className="font-medium">Text size</legend>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {(
+                [
+                  ["md", "Default"],
+                  ["lg", "Large"],
+                  ["xl", "Larger"],
+                ] as const
+              ).map(([v, label]) => (
+                <label key={v} className={cn("flex cursor-pointer items-center justify-center rounded-[var(--radius-input)] border p-2.5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus)]", settings.textSize === v ? "border-forest bg-lime-soft font-medium dark:border-lime" : "border-border hover:border-border-strong")}>
+                  <input type="radio" name="textSize" className="sr-only" checked={settings.textSize === v} onChange={() => update({ textSize: v })} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <p className="flex items-center gap-2 text-[13px] text-muted">
+            Also in the header: <AccessibilityMenu />
+          </p>
+        </div>
+      </Section>
+
       <Section title="Appearance">
         <fieldset>
           <legend className="sr-only">Theme</legend>
           <div className="grid grid-cols-3 gap-2">
             {(["system", "light", "dark"] as Settings["theme"][]).map((th) => (
-              <label key={th} className={cn("flex cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-input)] border p-2.5 capitalize", settings.theme === th ? "border-forest bg-lime-soft font-medium dark:border-lime" : "border-border hover:border-border-strong")}>
+              <label key={th} className={cn("flex cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-input)] border p-2.5 capitalize has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus)]", settings.theme === th ? "border-forest bg-lime-soft font-medium dark:border-lime" : "border-border hover:border-border-strong")}>
                 <input type="radio" name="theme" className="sr-only" checked={settings.theme === th} onChange={() => update({ theme: th })} />
                 {th === "system" ? "Match device" : th}
               </label>

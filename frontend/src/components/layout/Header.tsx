@@ -8,6 +8,7 @@ import { useAgent } from "@/features/agent/AgentProvider";
 import { useT, type MsgKey } from "@/lib/i18n";
 import { usePendingApprovals, useProfile } from "@/lib/queries";
 import { ConnectionIndicator } from "./ConnectionIndicator";
+import { AccessibilityMenu, ThemeToggle } from "./DisplayControls";
 import { LangSwitch } from "./LangSwitch";
 import { Logo } from "./Logo";
 
@@ -32,7 +33,12 @@ export function Header() {
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-3 px-4 sm:px-6">
         <Link to="/" aria-label={t("nav.home")} className="shrink-0 rounded-lg">
-          <Logo />
+          <span className="sm:hidden">
+            <Logo compact />
+          </span>
+          <span className="hidden sm:inline">
+            <Logo />
+          </span>
         </Link>
         <nav aria-label="Main" className="ml-6 hidden items-center gap-0.5 md:flex">
           {NAV.map((n) => (
@@ -55,7 +61,7 @@ export function Header() {
             </NavLink>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           {pending > 0 && (
             <Link
               to="/approvals"
@@ -71,6 +77,8 @@ export function Header() {
           <span className="hidden sm:contents">
             <LangSwitch />
           </span>
+          <ThemeToggle />
+          <AccessibilityMenu />
           <AskButton />
           <DM.Root>
             <DM.Trigger className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-surface p-1 hover:border-border-strong md:pr-3">

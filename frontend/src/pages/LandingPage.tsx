@@ -1,7 +1,8 @@
-import { ArrowRight, Check, CheckCircle2, FileText, Globe2, Languages, LayoutDashboard, Mail, ShieldCheck, Smartphone, Sparkles, X } from "lucide-react";
+import { Accessibility, ArrowRight, Check, CheckCircle2, FileText, Globe2, Languages, LayoutDashboard, Mail, ShieldCheck, Smartphone, Sparkles, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { AccessibilityMenu, ThemeToggle } from "@/components/layout/DisplayControls";
 import { LangSwitch } from "@/components/layout/LangSwitch";
 import { Logo, LogoMark } from "@/components/layout/Logo";
 import { ModeBanner } from "@/components/layout/ModeBanner";
@@ -64,7 +65,11 @@ function Nav() {
           </a>
         </nav>
         <nav aria-label="Account" className="ml-auto flex items-center gap-2">
-          <LangSwitch />
+          <span className="hidden sm:contents">
+            <LangSwitch />
+          </span>
+          <ThemeToggle />
+          <AccessibilityMenu />
           <Link to="/sign-in" className="hidden h-9 items-center rounded-full px-3.5 text-[14px] font-medium hover:bg-surface-2 sm:inline-flex">
             {t("land.signIn")}
           </Link>
@@ -349,6 +354,21 @@ function Features() {
     { title: "land.feat3", body: "land.feat3b", icon: <Globe2 className="size-5" /> },
     { title: "land.feat4", body: "land.feat4b", icon: <Languages className="size-5" /> },
     { title: "land.feat5", body: "land.feat5b", icon: <Smartphone className="size-5" /> },
+    {
+      title: "land.feat6",
+      body: "land.feat6b",
+      icon: <Accessibility className="size-5" />,
+      className: "md:col-span-3",
+      visual: (
+        <div aria-hidden className="mt-5 flex flex-wrap gap-2 md:mt-0">
+          {["Larger text", "High contrast", "Reduce motion", "Voice input", "Keyboard", "Screen readers"].map((x) => (
+            <span key={x} className="rounded-full border border-border bg-surface px-3 py-1 text-[13px] font-medium">
+              {x}
+            </span>
+          ))}
+        </div>
+      ),
+    },
   ];
   return (
     <section className="border-t border-border bg-surface">

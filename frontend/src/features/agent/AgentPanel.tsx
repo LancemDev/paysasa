@@ -7,6 +7,7 @@ import { DEMO_PROMPT, SUGGESTED_PROMPTS, actionCardsFromToolCalls } from "@/lib/
 import { useT } from "@/lib/i18n";
 import { useConnectionStatus } from "@/lib/realtime";
 import { LogoMark } from "@/components/layout/Logo";
+import { VoiceButton } from "@/components/ui/VoiceButton";
 import { ActionCards } from "./ActionCards";
 import { useAgent, type AssistantMessage, type ChatMessage } from "./AgentProvider";
 import { StepTrace } from "./StepTrace";
@@ -229,6 +230,7 @@ function Composer({ clarificationOptions, placeholder }: { clarificationOptions:
           aria-describedby={over ? "agent-input-err" : undefined}
           className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 outline-none focus-visible:outline-none"
         />
+        {!busy && <VoiceButton size="sm" onText={(x) => setDraft(draft ? `${draft} ${x}` : x)} />}
         {busy ? (
           <IconButton label="Stop waiting for PaySasa" variant="secondary" size="sm" onClick={stop} icon={<Square aria-hidden className="size-3.5 fill-current" />} />
         ) : (

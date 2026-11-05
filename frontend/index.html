@@ -15,7 +15,7 @@
     />
     <title>PaySasa</title>
     <script>
-      // Apply the saved theme and language before first paint, so nothing flashes.
+      // Apply the saved theme, language and accessibility choices before first paint, so nothing flashes.
       (function () {
         try {
           var s = JSON.parse(localStorage.getItem("paysasa.settings.v1") || "{}");
@@ -23,6 +23,10 @@
           var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
           document.documentElement.dataset.theme = dark ? "dark" : "light";
           if (s.lang === "sw") document.documentElement.lang = "sw";
+          var d = document.documentElement.dataset;
+          d.text = s.textSize || "md";
+          d.contrast = s.highContrast ? "high" : "normal";
+          d.motion = s.reduceMotion ? "reduce" : "system";
         } catch (e) {}
       })();
     </script>
