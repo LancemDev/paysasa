@@ -10,7 +10,7 @@ import { WorkspaceProvider } from "@/lib/workspace";
 export const NOW_ISO = "2026-10-22T09:00:00Z";
 export const OWNER = "00000000-0000-0000-0000-000000000001";
 
-export const john: Contact = { id: "c-john", owner_id: OWNER, name: "John Doe", email: "john@example.com", role: "client", aliases: [], created_at: NOW_ISO };
+export const john: Contact = { id: "c-john", owner_id: OWNER, name: "Daniel Carter", email: "daniel.carter@example.com", role: "client", aliases: [], created_at: NOW_ISO };
 export const sarah: Contact = { id: "c-sarah", owner_id: OWNER, name: "Sarah", email: "sarah@example.com", role: "contractor", aliases: ["my editor"], created_at: NOW_ISO };
 
 export function makeInvoice(over: Partial<Invoice> = {}): Invoice {

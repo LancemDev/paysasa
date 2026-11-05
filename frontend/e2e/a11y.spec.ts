@@ -25,11 +25,13 @@ for (const scheme of ["light", "dark"] as const) {
     expect((await new AxeBuilder({ page }).withTags(wcag).analyze()).violations).toEqual([]);
 
     await signIn(page);
+    await page.getByRole("button", { name: "Ask PaySasa" }).click();
     await page.getByRole("region", { name: "PaySasa assistant" }).getByRole("button", { name: /Kwame's request/ }).click();
     await expect(page.getByRole("heading", { name: "Invoice sent via PayPal" })).toBeVisible();
     // AG Grid's own internals are excluded; our cells, toolbar and the rest of the page are checked.
     const dash = await new AxeBuilder({ page }).withTags(wcag).exclude(".ag-root-wrapper").analyze();
     expect(dash.violations).toEqual([]);
+    await page.getByRole("button", { name: "Close assistant" }).click();
 
     await page.getByRole("button", { name: /Demo helper/ }).click();
     await page.getByRole("button", { name: "Mark as paid (simulated)" }).click();
@@ -57,4 +59,36 @@ test("no horizontal page scroll at 360px", async ({ page }, info) => {
     await page.waitForLoadState("networkidle");
     expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(360);
   }
+});
+
+test("first sign-in: welcome steps, language switch, spotlight tour", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "one viewport is enough");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await createFakeBackend(page).install({ tour: true });
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill("demo@paysasa.app");
+  await page.getByLabel("Password").fill("correct-horse-battery");
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  const welcome = page.getByRole("dialog", { name: "Welcome to PaySasa" });
+  await expect(welcome).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(wcag).include('[role="dialog"]').analyze()).violations).toEqual([]);
+  await welcome.getByRole("button", { name: "Continue" }).click();
+  await welcome.getByRole("button", { name: "Continue" }).click();
+  await welcome.getByRole("radio", { name: /Kiswahili/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "sw");
+  await welcome.getByRole("radio", { name: /English/ }).click();
+  await welcome.getByRole("button", { name: "Show me around" }).click();
+
+  const tour = page.getByRole("dialog", { name: "Start here" });
+  await expect(tour).toBeVisible();
+  await tour.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("dialog", { name: "Your money at a glance" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // It doesn't come back after a reload.
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Welcome to PaySasa" })).toHaveCount(0);
 });

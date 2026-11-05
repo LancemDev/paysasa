@@ -8,8 +8,10 @@ import { formatMoneyWithCode } from "@/lib/money";
 import { useActions, useContactsById, useInvoicesById, usePendingApprovals } from "@/lib/queries";
 import { actionStatusDisplay } from "@/lib/status";
 import { useWorkspace } from "@/lib/workspace";
+import { useT } from "@/lib/i18n";
 
 export function ApprovalsPage() {
+  const t = useT();
   const actions = useActions();
   const pending = usePendingApprovals();
   const contacts = useContactsById();
@@ -18,15 +20,15 @@ export function ApprovalsPage() {
   const locked = (actions.data ?? []).filter((a) => a.status === "locked");
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 pt-8 sm:px-6">
       <div>
-        <h1 className="flex items-center gap-2 text-[22px] font-semibold">
-          <ShieldCheck aria-hidden className="size-6 text-accent" /> Approvals
+        <h1 className="display flex items-center gap-2.5 text-[36px]">
+          <ShieldCheck aria-hidden className="size-7 text-[var(--chart-money)]" /> {t("approvals.title")}
         </h1>
-        <p className="text-muted">PaySasa never moves money or contacts clients on its own. Everything here waits for you.</p>
+        <p className="mt-1 text-[15px] text-muted">{t("approvals.sub")}</p>
       </div>
 
-      <section aria-labelledby="needs-h" className="rounded-[var(--radius-card)] border border-border bg-surface shadow-1">
+      <section aria-labelledby="needs-h" className="card overflow-hidden">
         <h2 id="needs-h" className="flex items-center gap-2 border-b border-border px-4 py-3 font-semibold">
           Needs your approval
           <span className="rounded-full bg-warning px-2 text-xs text-white tabular dark:text-bg">{pending.length}</span>
@@ -48,7 +50,7 @@ export function ApprovalsPage() {
               const payout = a.type === "payout";
               return (
                 <li key={a.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-                  <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-warning-soft text-warning">
+                  <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-xl bg-warning-soft text-warning">
                     {payout ? <Wallet className="size-5" /> : <FileText className="size-5" />}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -84,7 +86,7 @@ export function ApprovalsPage() {
       </section>
 
       {locked.length > 0 && (
-        <section aria-labelledby="locked-h" className="rounded-[var(--radius-card)] border border-border bg-surface shadow-1">
+        <section aria-labelledby="locked-h" className="card overflow-hidden">
           <h2 id="locked-h" className="border-b border-border px-4 py-3 font-semibold">
             Waiting for clients to pay
           </h2>

@@ -18,7 +18,7 @@ begin
   on conflict (id) do nothing;
 
   insert into contacts (owner_id, name, email, role, aliases) values
-    (uid, 'John Doe', 'john@example.com', 'client',     '{}'),
+    (uid, 'Daniel Carter', 'daniel.carter@example.com', 'client',     '{}'),
     (uid, 'Sarah',    sarah_email,        'contractor', '{"my editor"}')
   on conflict (owner_id, email) do nothing;
 end $$;

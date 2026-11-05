@@ -2,7 +2,7 @@ import { Loader2 } from "lucide-react";
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "./cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "danger-ghost";
+type Variant = "primary" | "cta" | "secondary" | "ghost" | "danger" | "danger-ghost";
 type Size = "sm" | "md" | "lg";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -14,15 +14,17 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<Variant, string> = {
   primary: "bg-accent text-accent-fg hover:bg-accent-hover shadow-1",
-  secondary: "bg-surface text-fg border border-border-strong hover:bg-surface-2",
+  /** The one lime action per screen. */
+  cta: "bg-lime text-ink-on-lime hover:bg-lime-2 shadow-[inset_0_-1px_0_rgb(0_0_0/0.12)]",
+  secondary: "bg-surface text-fg border border-border hover:border-border-strong hover:bg-surface-2",
   ghost: "text-fg hover:bg-surface-2",
   danger: "bg-danger text-white hover:opacity-90 shadow-1 dark:text-bg",
   "danger-ghost": "text-danger hover:bg-danger-soft",
 };
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-[13px] gap-1.5",
-  md: "h-10 px-4 text-sm gap-2",
-  lg: "h-12 px-5 text-base gap-2",
+  sm: "h-8 px-3 text-[13px] gap-1.5 rounded-[9px]",
+  md: "h-10 px-4 text-sm gap-2 rounded-[10px]",
+  lg: "h-12 px-6 text-[15px] gap-2 rounded-full",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -36,7 +38,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex select-none items-center justify-center rounded-[var(--radius-input)] font-medium whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-55",
+        "inline-flex select-none items-center justify-center font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100",
         variants[variant],
         sizes[size],
         className,

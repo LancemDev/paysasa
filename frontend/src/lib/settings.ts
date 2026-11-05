@@ -7,10 +7,14 @@ export interface Settings {
   /** Payouts at or above this many minor units need a second confirmation. */
   secondConfirmMinor: number;
   onboardingDismissed: boolean;
+  /** Interface language. Swahili covers the landing page and the main app surfaces. */
+  lang: "en" | "sw";
+  /** The first-run setup guide was finished or skipped. */
+  setupDone: boolean;
 }
 
 const KEY = "paysasa.settings.v1";
-const defaults: Settings = { theme: "system", secondConfirmMinor: env.secondConfirmMinor, onboardingDismissed: false };
+const defaults: Settings = { theme: "system", secondConfirmMinor: env.secondConfirmMinor, onboardingDismissed: false, lang: "en", setupDone: false };
 const listeners = new Set<() => void>();
 let cache: Settings | null = null;
 
@@ -59,4 +63,12 @@ export function useApplyTheme() {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, [theme]);
+}
+
+/** Keeps <html lang> in sync with the chosen language, for screen readers and hyphenation. */
+export function useApplyLang() {
+  const [{ lang }] = useSettings();
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 }

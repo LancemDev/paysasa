@@ -42,7 +42,7 @@ describe("ApprovalModal (payout)", () => {
     renderModal();
     expect(screen.getByText(/This will send/)).toHaveTextContent("This will send $240.00 USD to Sarah via PayPal.");
     expect(screen.getByText("sarah@example.com")).toBeInTheDocument();
-    expect(screen.getByText(/John Doe: Q3 Video Campaign/)).toBeInTheDocument();
+    expect(screen.getByText(/Daniel Carter: Q3 Video Campaign/)).toBeInTheDocument();
   });
 
   it("sends exactly one request on a double click and never claims money arrived early", async () => {
@@ -141,17 +141,17 @@ describe("ApprovalModal (reminder)", () => {
       amount_minor: null,
       currency: null,
       split_percent: null,
-      summary: "Remind John Doe: $1,200.00 is 3 days overdue",
-      draft_message: "Hi John, a friendly reminder.",
+      summary: "Remind Daniel Carter: $1,200.00 is 3 days overdue",
+      draft_message: "Hi Daniel, a friendly reminder.",
     });
     approveAction.mockResolvedValue({ action: { ...reminder, status: "succeeded" } });
     tables.pending_actions = [reminder];
     renderWithData(<ApprovalModal actionId="rem-1" onClose={() => {}} />, { actions: [reminder] });
     const box = screen.getByLabelText("Reminder message");
     await user.clear(box);
-    await user.type(box, "Hi John, please pay when you can. Kwame");
+    await user.type(box, "Hi Daniel, please pay when you can. Kwame");
     await user.click(screen.getByRole("button", { name: "Send reminder" }));
-    expect(approveAction).toHaveBeenCalledWith("rem-1", "Hi John, please pay when you can. Kwame");
+    expect(approveAction).toHaveBeenCalledWith("rem-1", "Hi Daniel, please pay when you can. Kwame");
     expect(await screen.findByText("Reminder sent")).toBeInTheDocument();
   });
 });

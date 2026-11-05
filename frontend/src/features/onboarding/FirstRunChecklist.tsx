@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
+import { motion } from "motion/react";
+import { useT } from "@/lib/i18n";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +27,7 @@ interface Step {
  */
 export function FirstRunChecklist() {
   const [settings, update] = useSettings();
+  const t = useT();
   const { prefill } = useAgent();
   const { openApproval } = useWorkspace();
   const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: 1, staleTime: 60_000 });
@@ -37,7 +40,7 @@ export function FirstRunChecklist() {
   const awaiting = payouts.find((a) => a.status === "awaiting_approval");
   const steps: Step[] = [
     {
-      title: "Connect",
+      title: t("cycle.connect"),
       done: health.isSuccess && contacts.some((c) => c.role === "contractor"),
       next: health.isError ? (
         <>
@@ -57,90 +60,105 @@ export function FirstRunChecklist() {
       ),
     },
     {
-      title: "Invoice sent",
+      title: t("cycle.invoice"),
       done: invoices.some((i) => i.status === "sent" || i.status === "paid"),
       next: (
         <Button size="sm" variant="primary" onClick={() => prefill(DEMO_PROMPT)}>
-          Fill in Kwame's request
+          {t("dash.fillKwame")}
         </Button>
       ),
     },
     {
-      title: "Payout scheduled",
+      title: t("cycle.payout"),
       done: payouts.length > 0,
-      next: "Ask PaySasa to pay a collaborator a share once the invoice is paid.",
+      next: t("cycle.nextPayout"),
     },
     {
-      title: "Client paid",
+      title: t("cycle.paid"),
       done: invoices.some((i) => i.status === "paid" && payouts.some((p) => p.trigger_invoice_id === i.id)),
-      next: env.enableDemo ? "Waiting for the client. In the demo, use Demo helper → Mark as paid." : "Waiting for your client to pay through PayPal.",
+      next: env.enableDemo ? t("cycle.nextWaitDemo") : t("cycle.nextWait"),
     },
     {
-      title: "You approved",
+      title: t("cycle.approved"),
       done: payouts.some((a) => ["executing", "submitted", "succeeded"].includes(a.status)),
       next: awaiting ? (
         <Button size="sm" variant="primary" onClick={() => openApproval(awaiting.id)}>
-          Review the payout
+          {t("cycle.review")}
         </Button>
       ) : (
-        "A payout is ready for your approval."
+        t("cycle.ready")
       ),
     },
     {
-      title: "Sent via PayPal",
+      title: t("cycle.sent"),
       done: payouts.some((a) => a.status === "submitted" || a.status === "succeeded"),
-      next: "PayPal is processing the payout.",
+      next: t("cycle.processing"),
     },
   ];
   const current = steps.findIndex((s) => !s.done);
   const allDone = current === -1;
 
+  const doneCount = steps.filter((s) => s.done).length;
   return (
-    <section aria-labelledby="cycle-h" className="rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-1">
-      <div className="flex items-start gap-2">
-        <h2 id="cycle-h" className="flex-1 font-semibold">
-          Your payment cycle{" "}
+    <section data-tour="cycle" aria-labelledby="cycle-h" className="card overflow-hidden">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pt-4">
+        <h2 id="cycle-h" className="flex-1 text-[14px] font-semibold">
+          {t("dash.cycle")}{" "}
           <span className="font-normal text-muted">
-            ({steps.filter((s) => s.done).length} of {steps.length})
+            ({doneCount} {t("cycle.of")} {steps.length})
           </span>
         </h2>
-        <button type="button" aria-label="Hide payment cycle" onClick={() => update({ onboardingDismissed: true })} className="rounded p-1 text-muted hover:bg-surface-2">
+        <button type="button" aria-label="Hide payment cycle" onClick={() => update({ onboardingDismissed: true })} className="rounded-lg p-1 text-muted hover:bg-surface-2">
           <X aria-hidden className="size-4" />
         </button>
       </div>
-      <ol className="mt-3 grid grid-cols-3 gap-y-3 sm:grid-cols-6">
+      <ol className="grid grid-cols-3 gap-y-4 px-3 pt-4 pb-4 sm:grid-cols-6">
         {steps.map((s, i) => (
-          <li key={s.title} aria-current={i === current ? "step" : undefined} className="flex flex-col items-center gap-1.5 text-center">
+          <li key={s.title} aria-current={i === current ? "step" : undefined} className="flex flex-col items-center gap-2 text-center">
             <div className="flex w-full items-center">
-              <span className={cn("h-0.5 flex-1", i === 0 ? "invisible" : steps[i - 1].done ? "bg-accent" : "bg-border")} />
+              <Connector hidden={i === 0} done={i > 0 && steps[i - 1].done} />
               <span
                 className={cn(
-                  "grid size-7 shrink-0 place-items-center rounded-full border-2 text-xs font-semibold",
-                  s.done ? "border-accent bg-accent text-accent-fg" : i === current ? "border-accent text-accent" : "border-border text-muted",
+                  "relative grid size-8 shrink-0 place-items-center rounded-full border-2 text-xs font-semibold transition-colors duration-300",
+                  s.done ? "border-forest bg-forest text-lime dark:border-lime dark:bg-lime dark:text-ink-on-lime" : i === current ? "border-forest bg-surface text-fg dark:border-lime" : "border-border bg-surface-2 text-subtle",
                 )}
               >
-                {s.done ? <Check aria-hidden className="size-4" /> : i + 1}
+                {i === current && <span aria-hidden className="absolute -inset-1.5 rounded-full bg-lime/40 blur-[3px] dark:bg-lime/20" />}
+                <span className="relative">{s.done ? <Check aria-hidden className="size-4" /> : i + 1}</span>
               </span>
-              <span className={cn("h-0.5 flex-1", i === steps.length - 1 ? "invisible" : s.done ? "bg-accent" : "bg-border")} />
+              <Connector hidden={i === steps.length - 1} done={s.done} />
             </div>
-            <span className={cn("text-xs", i === current ? "font-semibold" : "text-muted")}>
+            <span className={cn("text-[12.5px]", i === current ? "font-semibold" : s.done ? "text-fg" : "text-muted")}>
               {s.title}
               <span className="sr-only">{s.done ? " (done)" : i === current ? " (current step)" : " (not started)"}</span>
             </span>
           </li>
         ))}
       </ol>
-      <div className="mt-3 flex min-h-9 flex-wrap items-center gap-2 rounded-[var(--radius-input)] bg-surface-2 px-3 py-2 text-[13px]" aria-live="polite">
+      <div className="flex min-h-12 flex-wrap items-center gap-2 border-t border-border bg-surface-2 px-5 py-2.5 text-[13px]" aria-live="polite">
         {allDone ? (
           <span className="flex items-center gap-2">
-            <Check aria-hidden className="size-4 text-success" /> Full cycle complete: invoiced, paid, approved and sent via PayPal.
+            <Check aria-hidden className="size-4 text-success" /> {t("cycle.done")}
           </span>
         ) : (
           <>
-            <span className="font-semibold">Next:</span> {steps[current].next}
+            <span className="font-semibold">{t("dash.next")}:</span> {steps[current].next}
           </>
         )}
       </div>
     </section>
+  );
+}
+
+function Connector({ hidden, done }: { hidden: boolean; done: boolean }) {
+  return (
+    <span className={cn("relative h-[2px] flex-1 overflow-hidden rounded-full bg-transparent sm:bg-border", hidden && "invisible")}>
+      <motion.span
+        className="absolute inset-0 hidden origin-left bg-forest sm:block dark:bg-lime"
+        initial={false}
+        animate={{ scaleX: done ? 1 : 0 }}
+        transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
+      />
+    </span>
   );
 }

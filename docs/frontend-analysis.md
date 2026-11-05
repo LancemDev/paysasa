@@ -15,7 +15,7 @@ paysasa/
 │   ├── render.yaml              Render Blueprint: web service paysasa-api + cron paysasa-chase
 │   ├── supabase/
 │   │   ├── migrations/0001_init.sql   the whole schema, RLS, realtime publication
-│   │   └── seed.sql                   demo user Kwame + contacts John Doe, Sarah ("my editor")
+│   │   └── seed.sql                   demo user Kwame + contacts Daniel Carter, Sarah ("my editor")
 │   └── server/                  FastAPI app (Python 3.12)
 │       ├── app/main.py          create_app(): CORS, error handlers, routers, /health
 │       ├── app/config.py        pydantic-settings (reads server/.env)

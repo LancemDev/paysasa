@@ -2,7 +2,7 @@ import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type Texta
 import { cn } from "./cn";
 
 export const inputClass =
-  "w-full rounded-[var(--radius-input)] border border-border-strong bg-surface px-3 py-2 text-fg placeholder:text-muted/80 transition-colors focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-0 aria-[invalid=true]:border-danger";
+  "w-full rounded-[10px] border border-border-strong bg-surface px-3 py-2 text-fg placeholder:text-subtle transition-[border-color,box-shadow] hover:border-muted/50 focus-visible:border-accent focus-visible:shadow-[0_0_0_4px_var(--accent-soft)] focus-visible:outline-none aria-[invalid=true]:border-danger";
 
 interface FieldProps {
   label: string;
@@ -19,10 +19,10 @@ export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttr
   const describedBy = [error && `${fieldId}-err`, hint && `${fieldId}-hint`].filter(Boolean).join(" ") || undefined;
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={fieldId} className="font-medium">
+      <label htmlFor={fieldId} className="text-[13px] font-medium">
         {label}
       </label>
-      <input ref={ref} id={fieldId} aria-invalid={!!error} aria-describedby={describedBy} className={cn(inputClass, "h-10")} {...rest} />
+      <input ref={ref} id={fieldId} aria-invalid={!!error} aria-describedby={describedBy} className={cn(inputClass, "h-11")} {...rest} />
       {hint && !error && (
         <p id={`${fieldId}-hint`} className="text-[13px] text-muted">
           {hint}
@@ -45,7 +45,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, FieldProps & TextareaHTM
   const fieldId = id ?? auto;
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={fieldId} className="font-medium">
+      <label htmlFor={fieldId} className="text-[13px] font-medium">
         {label}
       </label>
       <textarea
