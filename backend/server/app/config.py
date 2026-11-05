@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     database_url: str
     supabase_url: str = ""
     supabase_service_role_key: str = ""
-    anthropic_api_key: str = ""
-    llm_model: str = "claude-sonnet-5-5"  # or claude-opus-5-5 / claude-haiku-5-5
+    gemini_api_key: str = ""
+    llm_model: str = "gemini-flash-latest"  # or gemini-pro-latest
     paypal_adapter: Literal["real", "mock"] = "mock"
     max_amount_minor: int = 1_000_000
     enable_dev_routes: bool = False
