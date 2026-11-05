@@ -37,7 +37,9 @@ def create_app(*, manage_pool: bool = True) -> FastAPI:
 
     @app.get("/health")
     async def health():
-        return {"ok": True}
+        # Tells the UI which PayPal it is talking to, so the banner can't drift from the server.
+        mode = "mock" if settings.paypal_adapter == "mock" else ("sandbox" if settings.paypal_env.lower() in ("", "sandbox", "test") else "live")
+        return {"ok": True, "paypal": mode}
 
     app.include_router(agent_router)
     app.include_router(actions_router)

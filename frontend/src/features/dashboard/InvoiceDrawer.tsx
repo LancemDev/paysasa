@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/components/ui/cn";
 import { dueLabel, formatDate, formatDateTime } from "@/lib/dates";
-import { env } from "@/lib/env";
+import { usePayPalMode } from "@/lib/paypalMode";
 import { formatMoney, formatMoneyWithCode } from "@/lib/money";
 import { useActions, useActivity, useAgentRun, useContactsById, useInvoices } from "@/lib/queries";
 import { actionStatusDisplay, invoiceDisplayStatus, invoiceRef, invoiceStatusDisplay } from "@/lib/status";
@@ -174,10 +174,11 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
 
 function PayPalRef({ invoice }: { invoice: Invoice }) {
   const [copied, setCopied] = useState(false);
+  const mode = usePayPalMode();
   if (!invoice.paypal_invoice_id) return <span className="text-muted">Not sent through PayPal</span>;
   const id = invoiceRef(invoice);
   // The backend doesn't store PayPal's payer link; in sandbox mode the public invoice URL follows this pattern.
-  const href = env.paypalMode === "sandbox" ? `https://www.sandbox.paypal.com/invoice/p/#${encodeURIComponent(invoice.paypal_invoice_id)}` : null;
+  const href = mode === "sandbox" ? `https://www.sandbox.paypal.com/invoice/p/#${encodeURIComponent(invoice.paypal_invoice_id)}` : null;
   return (
     <span className="flex flex-wrap items-center gap-2">
       <code className="text-[13px] break-all">{id}</code>
