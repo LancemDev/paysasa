@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 MAX_ROUNDS = 6
 HISTORY_RUNS = 10
 OUT_OF_ROUNDS_REPLY = "I ran out of steps before finishing. Check the dashboard to see what was done."
-# Claude can end a turn with no text and no tool call (a refusal, or a truncated reply).
+# Gemini can end a turn with no text and no tool call (a refusal, or a truncated reply).
 NOTHING_DONE_REPLY = "I did not do anything with that. Could you rephrase the request?"
 
 

@@ -1,53 +1,76 @@
-"""The Claude adapter, driven with a fake Anthropic client (no network, no API key)."""
+"""The Gemini adapter, driven with a fake GenAI client (no network, no API key)."""
 import json
 
 import pytest
 
 from app.agent.llm import (
-    CHAT_MAX_TOKENS, DRAFT_MAX_TOKENS, ClaudeLLM, ToolResult, ToolSpec,
+    CHAT_MAX_TOKENS, CHAT_TEMPERATURE, DRAFT_MAX_TOKENS, DRAFT_TEMPERATURE,
+    GeminiLLM, ToolResult, ToolSpec,
 )
 from app.agent.tools import TOOL_SPECS
 
 
-class FakeBlock:
-    def __init__(self, type: str, **fields):
-        self.type = type
-        for k, v in fields.items():
-            setattr(self, k, v)
+class FakeFunctionCall:
+    def __init__(self, name: str, args: dict, id: str | None = None):
+        self.name = name
+        self.args = args
+        self.id = id
 
 
-class FakeResponse:
+class FakePart:
+    def __init__(self, text: str | None = None, function_call: FakeFunctionCall | None = None):
+        self.text = text
+        self.function_call = function_call
+
+
+class FakeContent:
+    def __init__(self, role: str, parts: list):
+        self.role = role
+        self.parts = parts
+
+
+class FakeCandidate:
     def __init__(self, content):
         self.content = content
 
 
-class FakeMessages:
+class FakeResponse:
+    def __init__(self, parts):
+        self.candidates = [FakeCandidate(FakeContent("model", parts))]
+
+
+class FakeModels:
     def __init__(self, responses):
         self._responses = list(responses)
         self.calls: list[dict] = []
 
-    async def create(self, **kwargs):
-        self.calls.append(kwargs)
+    async def generate_content(self, *, model, contents, config):
+        self.calls.append({"model": model, "contents": list(contents), "config": config})
         if not self._responses:
             raise AssertionError("the model was called more times than the script expected")
         return self._responses.pop(0)
 
 
+class FakeAio:
+    def __init__(self, responses):
+        self.models = FakeModels(responses)
+
+
 class FakeClient:
     def __init__(self, responses):
-        self.messages = FakeMessages(responses)
+        self.aio = FakeAio(responses)
 
 
-def text(t: str) -> FakeBlock:
-    return FakeBlock("text", text=t)
+def text(t: str) -> FakePart:
+    return FakePart(text=t)
 
 
-def tool_use(tool_id: str, name: str, args: dict) -> FakeBlock:
-    return FakeBlock("tool_use", id=tool_id, name=name, input=args)
+def function_call(call_id: str, name: str, args: dict) -> FakePart:
+    return FakePart(function_call=FakeFunctionCall(name, args, call_id))
 
 
-def llm(client) -> ClaudeLLM:
-    return ClaudeLLM(api_key="unused", model="claude-sonnet-5-5", client=client)
+def llm(client) -> GeminiLLM:
+    return GeminiLLM(api_key="unused", model="gemini-flash-latest", client=client)
 
 
 async def test_request_shape():
@@ -59,47 +82,55 @@ async def test_request_shape():
     )
     await chat.send("hello")
 
-    call = client.messages.calls[0]
-    assert call["model"] == "claude-sonnet-5-5"
-    assert call["system"] == "SYSTEM"
-    assert call["max_tokens"] == CHAT_MAX_TOKENS
-    assert call["messages"] == [{"role": "user", "content": "hello"}]
-    # Anthropic takes the JSON schema under `input_schema`, not `parameters`.
-    assert call["tools"] == [{
-        "name": "find_contact",
-        "description": "Find a contact",
-        "input_schema": {"type": "object", "properties": {}},
-    }]
+    call = client.aio.models.calls[0]
+    assert call["model"] == "gemini-flash-latest"
+    assert call["config"].system_instruction == "SYSTEM"
+    assert call["config"].max_output_tokens == CHAT_MAX_TOKENS
+    assert call["config"].temperature == CHAT_TEMPERATURE
+    assert len(call["contents"]) == 1
+    assert call["contents"][0].role == "user"
+    assert call["contents"][0].parts[0].text == "hello"
+    # Gemini takes the JSON schema under `parameters_json_schema`, not `parameters`.
+    declarations = call["config"].tools[0].function_declarations
+    assert len(declarations) == 1
+    assert declarations[0].name == "find_contact"
+    assert declarations[0].description == "Find a contact"
+    assert declarations[0].parameters_json_schema == {"type": "object", "properties": {}}
 
 
-async def test_history_is_seeded_as_user_assistant_pairs():
+async def test_history_is_seeded_as_user_model_pairs():
     client = FakeClient([FakeResponse([text("hi")])])
     chat = llm(client).start_chat(
         system="SYSTEM", history=[("earlier", "earlier reply")], tools=[],
     )
     await chat.send("now")
-    assert client.messages.calls[0]["messages"] == [
-        {"role": "user", "content": "earlier"},
-        {"role": "assistant", "content": "earlier reply"},
-        {"role": "user", "content": "now"},
-    ]
+    contents = client.aio.models.calls[0]["contents"]
+    assert [c.role for c in contents] == ["user", "model", "user"]
+    assert [c.parts[0].text for c in contents] == ["earlier", "earlier reply", "now"]
+
+
+async def test_no_tools_sends_no_tools():
+    client = FakeClient([FakeResponse([text("hi")])])
+    chat = llm(client).start_chat(system="SYSTEM", history=[], tools=[])
+    await chat.send("hello")
+    assert client.aio.models.calls[0]["config"].tools is None
 
 
 async def test_tool_call_is_parsed():
-    client = FakeClient([FakeResponse([text("Looking that up."), tool_use("toolu_1", "find_contact",
-                                                                        {"query": "Sarah"})])])
+    client = FakeClient([FakeResponse([text("Looking that up."), function_call("call_1", "find_contact",
+                                                                               {"query": "Sarah"})])])
     chat = llm(client).start_chat(system="SYSTEM", history=[], tools=[])
     turn = await chat.send("who is my editor?")
 
     assert turn.text == "Looking that up."
     assert len(turn.calls) == 1
     call = turn.calls[0]
-    assert (call.name, call.args, call.id) == ("find_contact", {"query": "Sarah"}, "toolu_1")
+    assert (call.name, call.args, call.id) == ("find_contact", {"query": "Sarah"}, "call_1")
 
 
-async def test_tool_results_go_back_as_tool_result_blocks():
+async def test_tool_results_go_back_as_function_response_parts():
     client = FakeClient([
-        FakeResponse([tool_use("toolu_1", "find_contact", {"query": "Sarah"})]),
+        FakeResponse([function_call("call_1", "find_contact", {"query": "Sarah"})]),
         FakeResponse([text("Sarah is your editor.")]),
     ])
     chat = llm(client).start_chat(system="SYSTEM", history=[], tools=[])
@@ -109,18 +140,18 @@ async def test_tool_results_go_back_as_tool_result_blocks():
     assert turn2.calls == []
     assert turn2.text == "Sarah is your editor."
 
-    messages = client.messages.calls[1]["messages"]
-    assert [m["role"] for m in messages] == ["user", "assistant", "user"]
-    block = messages[2]["content"][0]
-    assert block["type"] == "tool_result"
-    assert block["tool_use_id"] == "toolu_1"  # must match the tool_use id
-    assert json.loads(block["content"]) == {"count": 1}
+    contents = client.aio.models.calls[1]["contents"]
+    assert [c.role for c in contents] == ["user", "model", "user"]
+    part = contents[2].parts[0]
+    assert part.function_response.name == "find_contact"
+    assert part.function_response.id == "call_1"  # must match the function_call id
+    assert part.function_response.response == {"count": 1}
 
 
 async def test_several_tool_results_keep_their_ids():
     client = FakeClient([
-        FakeResponse([tool_use("toolu_1", "find_contact", {"query": "a"}),
-                      tool_use("toolu_2", "find_contact", {"query": "b"})]),
+        FakeResponse([function_call("call_1", "find_contact", {"query": "a"}),
+                      function_call("call_2", "find_contact", {"query": "b"})]),
         FakeResponse([text("done")]),
     ])
     chat = llm(client).start_chat(system="SYSTEM", history=[], tools=[])
@@ -128,31 +159,48 @@ async def test_several_tool_results_keep_their_ids():
     await chat.send([ToolResult(name="find_contact", result={"n": 1}, id=turn.calls[0].id),
                      ToolResult(name="find_contact", result={"n": 2}, id=turn.calls[1].id)])
 
-    blocks = client.messages.calls[1]["messages"][2]["content"]
-    assert [b["tool_use_id"] for b in blocks] == ["toolu_1", "toolu_2"]
-    assert [json.loads(b["content"]) for b in blocks] == [{"n": 1}, {"n": 2}]
+    parts = client.aio.models.calls[1]["contents"][2].parts
+    assert [p.function_response.id for p in parts] == ["call_1", "call_2"]
+    assert [p.function_response.response for p in parts] == [{"n": 1}, {"n": 2}]
 
 
 async def test_tool_error_is_passed_back_as_a_result():
     client = FakeClient([
-        FakeResponse([tool_use("toolu_1", "send_invoice", {"amount": "0"})]),
+        FakeResponse([function_call("call_1", "send_invoice", {"amount": "0"})]),
         FakeResponse([text("The amount must be greater than zero.")]),
     ])
     chat = llm(client).start_chat(system="SYSTEM", history=[], tools=[])
     turn = await chat.send("send it")
     await chat.send([ToolResult(name="send_invoice", result={"error": "Amount must be greater than zero."},
                                 id=turn.calls[0].id)])
-    assert "greater than zero" in client.messages.calls[1]["messages"][2]["content"][0]["content"]
+    part = client.aio.models.calls[1]["contents"][2].parts[0]
+    assert "greater than zero" in part.function_response.response["error"]
 
 
-async def test_complete_joins_text_blocks():
+async def test_model_turn_is_kept_verbatim_for_thought_signatures():
+    client = FakeClient([
+        FakeResponse([function_call("call_1", "find_contact", {"query": "Sarah"})]),
+        FakeResponse([text("done")]),
+    ])
+    chat = llm(client).start_chat(system="SYSTEM", history=[], tools=[])
+    turn = await chat.send("who is my editor?")
+    await chat.send([ToolResult(name="find_contact", result={"count": 1}, id=turn.calls[0].id)])
+
+    # The exact object the SDK returned goes back into the contents, not a rebuilt one.
+    model_turn = client.aio.models.calls[1]["contents"][1]
+    assert model_turn.role == "model"
+    assert model_turn.parts[0].function_call.id == "call_1"
+
+
+async def test_complete_joins_text_parts():
     client = FakeClient([FakeResponse([text("  a "), text("b  ")])])
     out = await llm(client).complete(system="SYSTEM", prompt="PROMPT")
     assert out == "a b"
-    call = client.messages.calls[0]
-    assert call["messages"] == [{"role": "user", "content": "PROMPT"}]
-    assert call["max_tokens"] == DRAFT_MAX_TOKENS
-    assert "tools" not in call  # a one-shot draft has no tools
+    call = client.aio.models.calls[0]
+    assert call["contents"][0].parts[0].text == "PROMPT"
+    assert call["config"].max_output_tokens == DRAFT_MAX_TOKENS
+    assert call["config"].temperature == DRAFT_TEMPERATURE
+    assert call["config"].tools is None  # a one-shot draft has no tools
 
 
 async def test_no_text_and_no_calls_is_an_empty_turn():
@@ -162,7 +210,14 @@ async def test_no_text_and_no_calls_is_an_empty_turn():
     assert turn.text is None and turn.calls == []
 
 
-def test_real_tool_specs_are_valid_anthropic_schemas():
+async def test_blocked_response_is_an_empty_turn():
+    client = FakeClient([type("Resp", (), {"candidates": []})()])
+    chat = llm(client).start_chat(system="SYSTEM", history=[], tools=[])
+    turn = await chat.send("hello")
+    assert turn.text is None and turn.calls == []
+
+
+def test_real_tool_specs_are_valid_gemini_schemas():
     for spec in TOOL_SPECS:
         assert spec.parameters["type"] == "object"
         assert isinstance(spec.parameters["properties"], dict)
@@ -172,46 +227,58 @@ def test_real_tool_specs_are_valid_anthropic_schemas():
 
 
 async def test_the_real_sdk_accepts_our_request_shape():
-    """Serialize through the Anthropic SDK itself, so a schema mistake fails here and not in production."""
-    anthropic = pytest.importorskip("anthropic")
-    httpx2 = pytest.importorskip("httpx2")
+    """Serialize through the GenAI SDK itself, so a schema mistake fails here and not in production."""
+    genai = pytest.importorskip("google.genai")
+    httpx = pytest.importorskip("httpx")
+    from google.genai import types
 
     captured: dict = {}
 
     def handler(request):
         captured["body"] = json.loads(request.content)
         captured["headers"] = dict(request.headers)
-        return httpx2.Response(200, json={
-            "id": "msg_1", "type": "message", "role": "assistant", "model": "claude-sonnet-5-5",
-            "content": [{"type": "text", "text": "ok"}],
-            "stop_reason": "end_turn", "stop_sequence": None,
-            "usage": {"input_tokens": 10, "output_tokens": 2},
+        return httpx.Response(200, json={
+            "candidates": [{
+                "content": {"role": "model", "parts": [{"text": "ok"}]},
+                "finishReason": "STOP",
+                "index": 0,
+            }],
         })
 
-    tools = [{"name": s.name, "description": s.description, "input_schema": s.parameters} for s in TOOL_SPECS]
-    client = anthropic.AsyncAnthropic(
-        api_key="sk-test", http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)),
+    tools = [types.Tool(function_declarations=[
+        types.FunctionDeclaration(name=s.name, description=s.description, parameters_json_schema=s.parameters)
+        for s in TOOL_SPECS
+    ])]
+    client = genai.Client(
+        api_key="test-key",
+        http_options=types.HttpOptions(httpx_async_client=httpx.AsyncClient(transport=httpx.MockTransport(handler))),
     )
 
-    await client.messages.create(
-        model="claude-sonnet-5-5", max_tokens=1024, system="SYS",
-        messages=[{"role": "user", "content": "hi"}], tools=tools,
+    await client.aio.models.generate_content(
+        model="gemini-flash-latest",
+        contents=[types.Content(role="user", parts=[types.Part(text="hi")])],
+        config=types.GenerateContentConfig(system_instruction="SYS", max_output_tokens=1024, tools=tools),
     )
     body = captured["body"]
-    assert captured["headers"]["anthropic-version"] == "2023-06-01"
-    assert len(body["tools"]) == len(TOOL_SPECS)
-    assert body["tools"][0]["input_schema"]["type"] == "object"
+    assert "x-goog-api-key" in {k.lower() for k in captured["headers"]}
+    # The SDK passes parameters_json_schema through to the API unchanged.
+    declarations = body["tools"][0]["functionDeclarations"]
+    assert len(declarations) == len(TOOL_SPECS)
+    assert declarations[0]["parameters_json_schema"]["type"] == "object"
+    assert body["systemInstruction"]["parts"][0]["text"] == "SYS"
 
-    # The tool_use -> tool_result round trip must serialize too.
-    await client.messages.create(
-        model="claude-sonnet-5-5", max_tokens=1024, system="SYS",
-        messages=[
-            {"role": "user", "content": "hi"},
-            {"role": "assistant", "content": [
-                {"type": "tool_use", "id": "toolu_1", "name": "find_contact", "input": {"query": "x"}}]},
-            {"role": "user", "content": [
-                {"type": "tool_result", "tool_use_id": "toolu_1", "content": '{"count": 1}'}]},
+    # The function_call -> function_response round trip must serialize too.
+    await client.aio.models.generate_content(
+        model="gemini-flash-latest",
+        contents=[
+            types.Content(role="user", parts=[types.Part(text="hi")]),
+            types.Content(role="model", parts=[
+                types.Part(function_call=types.FunctionCall(id="call_1", name="find_contact",
+                                                            args={"query": "x"}))]),
+            types.Content(role="user", parts=[
+                types.Part(function_response=types.FunctionResponse(id="call_1", name="find_contact",
+                                                                    response={"count": 1}))]),
         ],
-        tools=tools,
+        config=types.GenerateContentConfig(system_instruction="SYS", max_output_tokens=1024, tools=tools),
     )
-    assert [m["role"] for m in captured["body"]["messages"]] == ["user", "assistant", "user"]
+    assert [c["role"] for c in captured["body"]["contents"]] == ["user", "model", "user"]
