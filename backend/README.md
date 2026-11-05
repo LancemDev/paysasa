@@ -1,6 +1,6 @@
 # PaySasa AI: Backend
 
-Everything here lives in `backend/`. FastAPI service in `server/`: the Gemini agent, the Supabase schema, the PayPal webhook, the approval endpoints and the overdue-chasing job. Only the adapter in `server/app/paypal/` (PayPal teammate) talks to PayPal; everything else calls the contract in `server/app/paypal_contract.py`.
+Everything here lives in `backend/`. FastAPI service in `server/`: the Gemini agent, the Supabase schema, the PayPal webhook, the approval endpoints and the overdue-chasing job. Only the adapter in `server/app/paypal/` talks to PayPal (real adapter, REST API; falls back to the in-memory mock in `server/app/paypal_mock/` unless `PAYPAL_ADAPTER=real`); everything else calls the contract in `server/app/paypal_contract.py`.
 
 ### Environment variables
 
@@ -80,6 +80,6 @@ The mock-adapter caveat above applies here too.
 
 ### Open questions (backend additions to spec Section 15)
 
-- **Real adapter entry point.** `deps.get_adapter()` loads it with `from app.paypal import get_paypal_adapter`, a zero-argument function returning an object that implements `PayPalAdapter`. The PayPal teammate needs to confirm or change that name.
+- ~~Real adapter entry point.~~ Resolved: `app/paypal/` implements the contract; `deps.get_adapter()` loads `get_paypal_adapter()` (zero-argument, reads `PAYPAL_*` settings) when `PAYPAL_ADAPTER=real`. To go live: enable the Invoicing, Payouts and Webhooks permissions for the app at developer.paypal.com, set `PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET`/`PAYPAL_WEBHOOK_ID` and `PAYPAL_ENV` (`sandbox`|`live`), and register `https://<service>.onrender.com/webhooks/paypal` as the webhook endpoint with the four event types listed above. Note: a fresh sandbox app without Invoicing/Payouts enabled gets `Authorization failed due to insufficient permissions` on the first call.
 - **Bad-signature logging.** The spec asks for a `system` activity row on a rejected webhook, but `activity_log.owner_id` is `not null` and an unverified body can't be trusted to name an owner. For now the rejection goes to the server log only.
 - **Payout with an unknown outcome.** If `execute_payout` fails with something other than `PayPalError` (e.g. a timeout), the action stays `executing`, because PayPal may have accepted it. The idempotency key makes a manual retry safe, but the MVP has no retry button.
