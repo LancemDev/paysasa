@@ -8,7 +8,7 @@
 
 An AI payments assistant for African freelancers. One sentence sends a PayPal invoice, waits for the client to pay, and lines up your collaborator's share. **No money moves until you approve it.**
 
-[Live demo](https://paysasa-frontend.onrender.com) · [API health](https://paysasa.onrender.com/health) · [Devpost](https://paypalaihackathon.devpost.com/) · [Demo script](docs/demo-script.md)
+[Live demo](https://paysasa-frontend.onrender.com) · [API health](https://paysasa.onrender.com/health)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-0b3d2c)
 ![PayPal Invoicing · Payouts · Webhooks](https://img.shields.io/badge/PayPal-Invoicing%20%C2%B7%20Payouts%20%C2%B7%20Webhooks-003087)
@@ -23,27 +23,15 @@ An AI payments assistant for African freelancers. One sentence sends a PayPal in
 
 ---
 
-## For judges: try it in two minutes
+## Try it
 
 | | |
 |---|---|
 | **Live app** | https://paysasa-frontend.onrender.com |
-| **Test login** | `demo@paysasa.app`. The password is in the Devpost submission's testing instructions. |
-| **Money** | Test mode only. PayPal is simulated, no real money moves, and a banner says so on every screen. |
-| **First load** | The free hosting can take up to a minute to wake up. A scheduled ping keeps it warm until 15 Dec 2026. |
+| **Test login** | `demo@paysasa.app` (password in the submission's testing instructions) |
+| **Money** | PayPal sandbox only: no real money moves |
 
-1. **Sign in.** A 3-step welcome and a short guided tour start on your first sign-in. To replay them, open `/?tour=1`, use **account menu → Take the tour**, or go to **Settings → Replay the welcome tour**.
-2. **Ask.** Tap **Kwame's request (one tap)** on the dashboard. The assistant opens and shows each step as it happens:
-   1. finds Daniel Carter;
-   2. sends a $1,200.00 PayPal invoice;
-   3. finds "my editor" (Sarah);
-   4. schedules her 20% ($240.00), **locked** until Daniel pays.
-3. **Client pays.** Open **Demo helper → Mark as paid (simulated)** at the bottom left. This runs the same code path as PayPal's `INVOICING.INVOICE.PAID` webhook. The dashboard updates live: the invoice flips to **Paid** and a **Needs your approval** badge appears.
-4. **Approve.** Click **Review**. The screen shows exactly what will happen ("This will send $240.00 USD to Sarah via PayPal"), the money path (Daniel → you → Sarah), what triggered it and who proposed it. Approve it. The payout goes to PayPal Payouts with an idempotency key.
-5. **Explore.**
-   - **Insights:** self-serve AG Studio dashboards.
-   - **EN / SW:** switch the whole interface to Kiswahili.
-   - **⌘K / Ctrl K:** opens the assistant from any page.
+A short guided tour runs on first sign-in. Replay it any time at `/?tour=1` or from **account menu → Take the tour**.
 
 ---
 
@@ -129,7 +117,7 @@ sequenceDiagram
 | **Payouts** (batch payout, status) | Executed only after human approval; `sender_batch_id` is our idempotency key, so a retry can't pay twice | `app/actions/` |
 | **Webhooks** (`INVOICING.INVOICE.PAID`, `…CANCELLED`, `PAYMENT.PAYOUTSBATCH.SUCCESS`, `…DENIED`) | Drive every state change; the signature is verified before anything is trusted | `app/webhooks/` |
 
-All PayPal calls go through one interface, `PayPalAdapter` in [`paypal_contract.py`](backend/server/app/paypal_contract.py): invoices, reminders, payouts, payout status and webhook verification. The deployed demo runs the **mock adapter** (`PAYPAL_ADAPTER=mock`). It follows PayPal's states and webhook payloads, which keeps the demo repeatable. Setting `PAYPAL_ADAPTER=real` with sandbox credentials switches to the PayPal REST adapter without touching any other code.
+All PayPal calls go through one interface, `PayPalAdapter` in [`paypal_contract.py`](backend/server/app/paypal_contract.py): invoices, reminders, payouts, payout status and webhook verification. `PAYPAL_ADAPTER=real` (the hosted app) uses the PayPal REST adapter against the PayPal sandbox. `PAYPAL_ADAPTER=mock` is an in-memory stand-in with the same states and webhook payloads, used by the test suite and for offline development.
 
 ### AI: an agent that acts, but can't spend
 
@@ -221,7 +209,7 @@ flowchart LR
 
 ```
 backend/
-  server/app/         FastAPI app: agent/, actions/, webhooks/, jobs/, paypal_contract.py, paypal_mock/
+  server/app/         FastAPI app: agent/, actions/, webhooks/, jobs/, paypal/ (REST adapter), paypal_contract.py, paypal_mock/
   server/tests/       pytest (real Postgres, mock adapter)
   supabase/           migrations + demo seed
   render.yaml         API web service + daily cron
@@ -230,7 +218,7 @@ frontend/
   src/lib/i18n.ts     English + Kiswahili strings
   e2e/                Playwright specs + in-browser fake backend
   render.yaml         static site
-docs/                 demo script, design notes, frontend analysis
+docs/                 design notes, screenshots
 ```
 
 ---
@@ -255,7 +243,7 @@ npm run dev                                        # http://localhost:3000
 
 **Demo data:**
 1. Sign up `demo@paysasa.app`.
-2. Put Sarah's PayPal sandbox email in `backend/supabase/seed.sql` and run it. This creates Daniel Carter (client) and Sarah, "my editor" (contractor). The in-app **Demo helper** can also add them.
+2. Put Sarah's PayPal sandbox email in `backend/supabase/seed.sql` and run it. This creates Daniel Carter (client) and Sarah, "my editor" (contractor).
 
 All environment variables are documented in [`backend/README.md`](backend/README.md) and [`frontend/README.md`](frontend/README.md).
 
@@ -275,20 +263,9 @@ The end-to-end tests run against an in-browser fake of the backend and Supabase 
 
 ---
 
-## How this maps to the judging criteria
-
-| Criterion | What to look at |
-|---|---|
-| **Technological implementation** | Claude tool-use agent with typed tools. A webhook-driven payout state machine with idempotency and conflict handling. RLS, Realtime with polling fallback, money in integer minor units. Unit, end-to-end and accessibility tests. |
-| **Design** | One coherent design system across landing, app, mobile and dark mode. Pop-up assistant, data-sized grids, first-login tour, WCAG 2.1 AA. |
-| **Potential impact** | African freelancers who bill abroad and pay collaborators. Invoicing, chasing, splitting and paying collapse into one sentence and one tap. Kiswahili support. |
-| **Innovation** | Agentic commerce where the agent proposes and a person approves. Payouts are *locked to a specific invoice* and unlocked only by PayPal's webhook. |
-| **Presentation** | A two-minute judge path (above), a guided tour in the product, and a timed [demo script](docs/demo-script.md). |
-
 ## Known limitations
 
-- **PayPal adapter:** the hosted demo uses the mock PayPal adapter. The real sandbox adapter plugs in behind `PAYPAL_ADAPTER=real`.
-- **Payout completion:** in mock mode, payouts stop at **Submitted to PayPal**. "Paid out" needs PayPal's payout webhook.
+- **Sandbox only:** PaySasa runs against the PayPal sandbox; going live needs PayPal production approval for Payouts.
 - **Editing invoices:** there's no invoice edit or cancel yet, because the agent sends invoices immediately.
 - **Currencies:** USD, GBP and EUR. There's no currency conversion.
 
