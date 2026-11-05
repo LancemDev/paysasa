@@ -6,7 +6,7 @@ function int(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-export type PayPalMode = "mock" | "sandbox";
+export type PayPalMode = "mock" | "sandbox" | "live";
 
 export const env = {
   apiBaseUrl: (raw.VITE_API_BASE_URL ?? "").replace(/\/+$/, ""),

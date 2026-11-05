@@ -12,7 +12,7 @@ An AI payments assistant for African freelancers. One sentence sends a PayPal in
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-0b3d2c)
 ![PayPal Invoicing · Payouts · Webhooks](https://img.shields.io/badge/PayPal-Invoicing%20%C2%B7%20Payouts%20%C2%B7%20Webhooks-003087)
-![Claude tool use](https://img.shields.io/badge/AI-Claude%20tool%20use-c8f169)
+![Gemini function calling](https://img.shields.io/badge/AI-Gemini%20function%20calling-c8f169)
 ![AG Grid + AG Studio](https://img.shields.io/badge/AG%20Grid-%2B%20AG%20Studio-1f8a54)
 ![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA%20%C2%B7%20voice%20%C2%B7%20high%20contrast-0b3d2c)
 ![English · Kiswahili](https://img.shields.io/badge/lang-English%20%C2%B7%20Kiswahili-0b3d2c)
@@ -29,7 +29,7 @@ An AI payments assistant for African freelancers. One sentence sends a PayPal in
 |---|---|
 | **Live app** | https://paysasa-frontend.onrender.com |
 | **Test login** | `demo@paysasa.app` (password in the submission's testing instructions) |
-| **Money** | PayPal sandbox only: no real money moves |
+| **Money** | Real PayPal **sandbox** APIs (Invoicing, Payouts, Webhooks): real PayPal calls, test accounts, no real money moves |
 
 A short guided tour runs on first sign-in. Replay it any time at `/?tour=1` or from **account menu → Take the tour**.
 
@@ -85,7 +85,7 @@ sequenceDiagram
     actor K as Kwame (freelancer)
     participant W as Web app (React)
     participant A as API (FastAPI)
-    participant C as Claude (tool use)
+    participant C as Gemini (function calling)
     participant P as PayPal
     participant D as Supabase (Postgres + Realtime)
 
@@ -117,11 +117,11 @@ sequenceDiagram
 | **Payouts** (batch payout, status) | Executed only after human approval; `sender_batch_id` is our idempotency key, so a retry can't pay twice | `app/actions/` |
 | **Webhooks** (`INVOICING.INVOICE.PAID`, `…CANCELLED`, `PAYMENT.PAYOUTSBATCH.SUCCESS`, `…DENIED`) | Drive every state change; the signature is verified before anything is trusted | `app/webhooks/` |
 
-All PayPal calls go through one interface, `PayPalAdapter` in [`paypal_contract.py`](backend/server/app/paypal_contract.py): invoices, reminders, payouts, payout status and webhook verification. `PAYPAL_ADAPTER=real` (the hosted app) uses the PayPal REST adapter against the PayPal sandbox. `PAYPAL_ADAPTER=mock` is an in-memory stand-in with the same states and webhook payloads, used by the test suite and for offline development.
+All PayPal calls go through one interface, `PayPalAdapter` in [`paypal_contract.py`](backend/server/app/paypal_contract.py): invoices, reminders, payouts, payout status and webhook verification. **The hosted app runs on the PayPal sandbox:** `PAYPAL_ADAPTER=real` uses the PayPal REST adapter against `api-m.sandbox.paypal.com`, so invoices, payouts and webhooks are real PayPal sandbox objects. The banner at the top of the app shows the mode the server reports on `/health`. `PAYPAL_ADAPTER=mock` is an in-memory stand-in with the same states and webhook payloads, used by the test suite and for offline development.
 
 ### AI: an agent that acts, but can't spend
 
-- **Model and loop:** Claude (`claude-sonnet-5-5`) with native tool use, running a multi-turn loop (`app/agent/run.py`).
+- **Model and loop:** Google Gemini (`gemini-flash-latest`, set by `LLM_MODEL`) with native function calling, running a multi-turn loop (`app/agent/run.py`, `app/agent/llm.py`).
 - **Six typed tools**, each validated with Pydantic:
   - `find_contact`, `create_contact`
   - `send_invoice`
@@ -133,7 +133,7 @@ All PayPal calls go through one interface, `PayPalAdapter` in [`paypal_contract.
   - Payouts are created as `locked` and can only unlock from a PayPal webhook.
   - There is **no tool that approves or executes a payout**.
 - **Transparency:** each tool call is logged to `activity_log` and streamed to the UI as a step trace, then rebuilt from `agent_runs.tool_calls`.
-- **Reminders:** the daily chase job asks Claude for a short, polite draft and checks that it mentions the right amount. A human edits and sends it (`app/agent/draft_reminder.py`).
+- **Reminders:** the daily chase job asks Gemini for a short, polite draft and checks that it mentions the right amount. A human edits and sends it (`app/agent/draft_reminder.py`).
 - **Language:** the assistant replies in the language the user writes in, so a Kiswahili request gets a Kiswahili reply.
 
 ### AG Grid and AG Studio
@@ -197,7 +197,7 @@ flowchart LR
       CRON["Daily chase job<br/>06:00 UTC"]
     end
     SB[("Supabase<br/>Postgres + RLS<br/>Auth + Realtime")]
-    LLM["Claude<br/>tool use"]
+    LLM["Gemini<br/>function calling"]
     PP["PayPal<br/>Invoicing · Payouts · Webhooks"]
 
     UI -- "commands (Bearer JWT)" --> API
@@ -216,7 +216,7 @@ flowchart LR
 | Layer | Stack |
 |---|---|
 | Frontend | React 19, TypeScript, Vite 8, Tailwind CSS 4, TanStack Query, Radix UI, motion, AG Grid 36 (Enterprise), AG Studio 3 |
-| Backend | Python 3.12, FastAPI, Pydantic 2, psycopg 3, Anthropic SDK |
+| Backend | Python 3.12, FastAPI, Pydantic 2, psycopg 3, Google GenAI SDK |
 | Data | Supabase (Postgres, Auth, Realtime, RLS) |
 | Hosting | Render (static site + web service + cron) |
 | Testing | Vitest + Testing Library, Playwright + axe-core, pytest |
@@ -247,7 +247,7 @@ docs/                 design notes, screenshots
 # Backend
 cd backend/server
 python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env          # DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, LLM_MODEL
+cp .env.example .env          # DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, LLM_MODEL
 .venv/bin/uvicorn app.main:app --reload            # http://localhost:8000
 
 # Frontend

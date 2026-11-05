@@ -239,6 +239,8 @@ export interface ApiErrorBody {
 
 export interface HealthResponse {
   ok: true;
+  /** Which PayPal the server is wired to. Older servers omit it. */
+  paypal?: "mock" | "sandbox" | "live";
 }
 
 /** POST /api/agent/message */

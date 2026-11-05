@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/components/ui/cn";
 import { useAuth } from "@/auth/AuthProvider";
 import { env } from "@/lib/env";
+import { usePayPalMode } from "@/lib/paypalMode";
 import { formatMoney, minorToDecimalString } from "@/lib/money";
 import { useProfile } from "@/lib/queries";
 import { useSettings, type Settings } from "@/lib/settings";
@@ -17,6 +18,7 @@ export function SettingsPage() {
   const { user, signOut } = useAuth();
   const profile = useProfile();
   const [settings, update] = useSettings();
+  const paypalMode = usePayPalMode();
   const toast = useToast();
   const t = useT();
   const currency = profile.data?.default_currency?.trim() || "USD";
@@ -138,7 +140,7 @@ export function SettingsPage() {
       <Section title="Environment">
         <dl className="grid grid-cols-[9rem_1fr] gap-y-2 text-[13px]">
           <dt className="text-muted">PayPal</dt>
-          <dd>{env.paypalMode === "sandbox" ? "Sandbox (test accounts, no real money)" : "Mock (simulated by the server, no real money)"}</dd>
+          <dd>{paypalMode === "sandbox" ? "Sandbox (test accounts, no real money)" : paypalMode === "live" ? "Live (real money)" : "Mock (simulated by the server, no real money)"}</dd>
           <dt className="text-muted">Server</dt>
           <dd className="break-all">{env.apiBaseUrl}</dd>
         </dl>

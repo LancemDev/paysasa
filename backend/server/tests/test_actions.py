@@ -107,4 +107,4 @@ async def test_create_contact_endpoint(client, pool, user):
 
 
 async def test_health(client):
-    assert (await client.get("/health")).json() == {"ok": True}
+    assert (await client.get("/health")).json() == {"ok": True, "paypal": "mock"}

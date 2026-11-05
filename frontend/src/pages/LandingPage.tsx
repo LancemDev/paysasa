@@ -175,7 +175,7 @@ function Hero() {
 
 function BuiltOn() {
   const t = useT();
-  const items = ["PayPal Invoicing", "PayPal Payouts", "PayPal Webhooks", "Claude", "AG Grid", "AG Studio", "Supabase", "Render"];
+  const items = ["PayPal Invoicing", "PayPal Payouts", "PayPal Webhooks", "Gemini", "AG Grid", "AG Studio", "Supabase", "Render"];
   return (
     <section aria-label={t("land.builtOn")} className="border-y border-border bg-surface">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 py-6 sm:px-6">
