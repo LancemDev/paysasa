@@ -1,6 +1,6 @@
 # PaySasa AI: Backend
 
-Everything here lives in `backend/`. FastAPI service in `server/`: the Gemini agent, the Supabase schema, the PayPal webhook, the approval endpoints and the overdue-chasing job. Only the adapter in `server/app/paypal/` talks to PayPal (real adapter, REST API; falls back to the in-memory mock in `server/app/paypal_mock/` unless `PAYPAL_ADAPTER=real`); everything else calls the contract in `server/app/paypal_contract.py`.
+Everything here lives in `backend/`. FastAPI service in `server/`: the Claude agent, the Supabase schema, the PayPal webhook, the approval endpoints and the overdue-chasing job. Only the adapter in `server/app/paypal/` talks to PayPal (real adapter, REST API; falls back to the in-memory mock in `server/app/paypal_mock/` unless `PAYPAL_ADAPTER=real`); everything else calls the contract in `server/app/paypal_contract.py`.
 
 ### Environment variables
 
@@ -10,7 +10,7 @@ Copy `server/.env.example` to `server/.env` (git-ignored). On Render, set the sa
 |---|---|
 | `DATABASE_URL` | Supabase Postgres connection string (the pooler URL works) |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Used to check users' Bearer tokens |
-| `GEMINI_API_KEY`, `LLM_MODEL` | Gemini key and model name, e.g. `gemini-flash-latest` |
+| `ANTHROPIC_API_KEY`, `LLM_MODEL` | Anthropic key and model name, e.g. `claude-sonnet-5-5` |
 | `PAYPAL_ADAPTER` | `mock` (default) or `real` |
 | `MAX_AMOUNT_MINOR` | Per-invoice and per-payout cap in cents (default `1000000` = $10,000) |
 | `ENABLE_DEV_ROUTES` | `true` mounts `/dev/*` for rehearsals; set `false` after the video is recorded |
@@ -30,7 +30,7 @@ Users can only read their own rows (row-level security); all writes go through t
 ```sh
 cd server
 uv venv --python 3.12 .venv && uv pip install -r requirements.txt   # or python -m venv + pip
-cp .env.example .env    # fill in DATABASE_URL, SUPABASE_*, GEMINI_API_KEY, LLM_MODEL
+cp .env.example .env    # fill in DATABASE_URL, SUPABASE_*, ANTHROPIC_API_KEY, LLM_MODEL
 .venv/bin/uvicorn app.main:app --reload
 ```
 

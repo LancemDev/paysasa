@@ -1,27 +1,30 @@
-"""Thin LLM interface so the agent loop can run against Gemini or a scripted fake in tests.
+"""Thin LLM interface so the agent loop can run against Claude or a scripted fake in tests.
 
-The Gemini adapter speaks the Google GenAI API: a system instruction plus a list of contents, and
-tools declared as function declarations from a JSON Schema. Gemini answers with `function_call`
-parts; we run the tools and send the results back as `function_response` parts.
+The Claude adapter speaks the Anthropic Messages API: a system prompt plus a list of messages, and
+tools declared with a JSON Schema in `input_schema`. Claude answers with `tool_use` blocks; we run
+the tools and send the results back as `tool_result` blocks.
 """
+import json
+import logging
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Protocol
-
-from google import genai
-from google.genai import types
 
 CHAT_MAX_TOKENS = 4096
 DRAFT_MAX_TOKENS = 512
 CHAT_TEMPERATURE = 0.0
 DRAFT_TEMPERATURE = 0.4
+DEFAULT_MODEL = "claude-sonnet-5-5"
+REQUEST_TIMEOUT_SECONDS = 60.0
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
 class ToolSpec:
     name: str
     description: str
-    parameters: dict[str, Any]  # JSON schema, sent to Gemini as `parameters_json_schema`
+    parameters: dict[str, Any]  # JSON schema, sent to Claude as `input_schema`
 
 
 @dataclass
@@ -54,10 +57,10 @@ class LLM(Protocol):
     async def complete(self, *, system: str, prompt: str) -> str: ...
 
 
-class GeminiLLM:
-    """Gemini behind the LLM protocol.
+class ClaudeLLM:
+    """Claude behind the LLM protocol.
 
-    `client` is injectable so the tests can drive the adapter without the GenAI SDK client.
+    `client` is injectable so the tests can drive the adapter without the Anthropic SDK.
     """
 
     def __init__(
@@ -69,103 +72,83 @@ class GeminiLLM:
         client: Any = None,
     ):
         if client is None:
-            client = genai.Client(api_key=api_key)
+            import anthropic
+
+            client = anthropic.AsyncAnthropic(
+                api_key=api_key,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+                max_retries=2,
+            )
         self._client = client
         self._model = model
         self._max_tokens = max_tokens
 
     def start_chat(self, *, system: str, history: list[tuple[str, str]], tools: list[ToolSpec]) -> Chat:
-        return _GeminiChat(
+        return _ClaudeChat(
             self._client, self._model, self._max_tokens,
             system=system, history=history, tools=tools,
         )
 
     async def complete(self, *, system: str, prompt: str) -> str:
         """One-shot completion with no tools, used for the overdue reminder draft."""
-        resp = await self._client.aio.models.generate_content(
+        resp = await self._client.messages.create(
             model=self._model,
-            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
-            config=types.GenerateContentConfig(
-                system_instruction=system,
-                max_output_tokens=DRAFT_MAX_TOKENS,
-                temperature=DRAFT_TEMPERATURE,
-            ),
+            max_tokens=DRAFT_MAX_TOKENS,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
         )
-        return "".join(_part_texts(resp)).strip()
+        return "".join(b.text for b in resp.content if b.type == "text").strip()
 
 
-def _part_texts(resp: Any) -> list[str]:
-    texts: list[str] = []
-    if not getattr(resp, "candidates", None):
-        return texts
-    content = resp.candidates[0].content
-    for part in getattr(content, "parts", None) or []:
-        if getattr(part, "text", None):
-            texts.append(part.text)
-    return texts
-
-
-class _GeminiChat:
+class _ClaudeChat:
     def __init__(self, client, model, max_tokens, *, system, history, tools):
         self._client = client
         self._model = model
         self._max_tokens = max_tokens
         self._system = system
-        self._contents: list[types.Content] = []
+        self._messages: list[dict] = []
         for user_msg, reply in history:
-            self._contents.append(types.Content(role="user", parts=[types.Part(text=user_msg)]))
-            self._contents.append(types.Content(role="model", parts=[types.Part(text=reply)]))
-        self._tools = None
-        if tools:
-            declarations = [
-                types.FunctionDeclaration(name=t.name, description=t.description, parameters_json_schema=t.parameters)
-                for t in tools
-            ]
-            self._tools = [types.Tool(function_declarations=declarations)]
-
-    def _config(self) -> types.GenerateContentConfig:
-        return types.GenerateContentConfig(
-            system_instruction=self._system,
-            max_output_tokens=self._max_tokens,
-            temperature=CHAT_TEMPERATURE,
-            tools=self._tools,
-        )
+            self._messages.append({"role": "user", "content": user_msg})
+            self._messages.append({"role": "assistant", "content": reply})
+        self._tools = [
+            {"name": t.name, "description": t.description, "input_schema": t.parameters}
+            for t in tools
+        ]
 
     async def send(self, content: str | list[ToolResult]) -> LLMTurn:
         if isinstance(content, str):
-            self._contents.append(types.Content(role="user", parts=[types.Part(text=content)]))
+            self._messages.append({"role": "user", "content": content})
         else:
-            # Every function_call id from the previous turn needs a function_response, in the same order.
-            self._contents.append(types.Content(
-                role="user",
-                parts=[
-                    types.Part(function_response=types.FunctionResponse(
-                        name=r.name, id=r.id, response=r.result,
-                    ))
+            # Every tool_use id from the previous turn needs a tool_result, in the same order.
+            self._messages.append({
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": r.id,
+                        "content": json.dumps(r.result, default=str),
+                    }
                     for r in content
                 ],
-            ))
+            })
 
-        resp = await self._client.aio.models.generate_content(
+        resp = await self._client.messages.create(
             model=self._model,
-            contents=list(self._contents),
-            config=self._config(),
+            max_tokens=self._max_tokens,
+            system=self._system,
+            messages=list(self._messages),
+            tools=self._tools,
         )
-        # Keep the model turn verbatim: function_call ids and thought signatures inside it
-        # must match the next function_response.
-        candidate = resp.candidates[0] if getattr(resp, "candidates", None) else None
-        reply_content = candidate.content if candidate else None
-        if reply_content is not None:
-            self._contents.append(reply_content)
+        # Keep the assistant turn verbatim: the tool_use ids inside it must match the next tool_result.
+        self._messages.append({"role": "assistant", "content": resp.content})
 
         calls: list[ToolCall] = []
         texts: list[str] = []
-        for part in (getattr(reply_content, "parts", None) or []):
-            fc = getattr(part, "function_call", None)
-            if fc is not None:
-                calls.append(ToolCall(name=fc.name, args=dict(fc.args or {}), id=getattr(fc, "id", None)))
-            elif getattr(part, "text", None):
-                texts.append(part.text)
+        for block in resp.content:
+            if block.type == "tool_use":
+                calls.append(ToolCall(name=block.name, args=dict(block.input or {}), id=block.id))
+            elif block.type == "text":
+                texts.append(block.text)
         return LLMTurn(text="".join(texts).strip() or None, calls=calls)
 
 
@@ -174,4 +157,9 @@ def get_llm() -> LLM:
     from app.config import get_settings
 
     s = get_settings()
-    return GeminiLLM(api_key=s.gemini_api_key, model=s.llm_model)
+    model = s.llm_model
+    # Ignore a stale Gemini model name left over from the previous provider.
+    if not model or model.startswith(("gemini", "models/")):
+        log.warning("LLM_MODEL=%r is not an Anthropic model; using %s", model, DEFAULT_MODEL)
+        model = DEFAULT_MODEL
+    return ClaudeLLM(api_key=s.anthropic_api_key, model=model)

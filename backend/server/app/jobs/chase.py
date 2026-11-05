@@ -78,7 +78,7 @@ async def main() -> None:
     settings = get_settings()
     pool = await open_pool(settings.database_url, min_size=1, max_size=2)
     try:
-        llm = get_llm() if settings.gemini_api_key else None
+        llm = get_llm() if settings.anthropic_api_key else None
         created = await run_chase(pool, llm)
         log.info("chase job queued %d reminder(s)", created)
     finally:
