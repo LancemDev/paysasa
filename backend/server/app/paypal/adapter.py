@@ -107,7 +107,7 @@ class RealPayPalAdapter:
         billing_info: dict = {"email_address": recipient_email}
         if recipient_name:
             billing_info["name"] = _split_name(recipient_name.strip())
-        draft = await self._request("POST", "/v2/invoicing/invoices", json={
+        draft = await self._request("POST", "/v2/invoicing/invoices", headers={"Prefer": "return=representation"}, json={
             "detail": detail,
             "primary_recipients": [{"billing_info": billing_info}],
             "items": [
@@ -120,12 +120,16 @@ class RealPayPalAdapter:
                 for item in items
             ],
         })
-        invoice_id = draft["id"]
+        # Without return=representation PayPal answers with only {"rel": "self", "href": ".../invoices/<id>"}.
+        invoice_id = draft.get("id") or str(draft.get("href", "")).rstrip("/").rsplit("/", 1)[-1]
+        if not invoice_id:
+            raise PayPalError("INVALID_RESPONSE", "PayPal did not return an invoice id")
         sent = await self._request(
             "POST", f"/v2/invoicing/invoices/{invoice_id}/send",
             json={"send_to_recipient": True, "send_to_invoicer": True},
         )
-        recipient_view_url = ((sent.get("detail") or {}).get("metadata") or {}).get("recipient_view_url")
+        recipient_view_url = (((sent.get("detail") or {}).get("metadata") or {}).get("recipient_view_url")
+                              or (sent.get("href") if sent.get("rel") == "payer-view" else None))
         return SentInvoice(paypal_invoice_id=invoice_id, status=sent.get("status", "SENT"),
                            payer_view_url=recipient_view_url)
 
