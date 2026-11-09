@@ -1,5 +1,5 @@
 import { Activity, AlertTriangle, CheckCircle2, FileText, Lock, Mail, Sparkles, Wallet } from "lucide-react";
-import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorPanel } from "@/components/ui/EmptyState";
@@ -16,7 +16,9 @@ import { DEMO_PROMPT } from "@/lib/agent";
 import { dueLabel, relativeTime } from "@/lib/dates";
 import { useT } from "@/lib/i18n";
 import { formatMoney, formatTotals, totalsByCurrency } from "@/lib/money";
+import { useQueryClient } from "@tanstack/react-query";
 import { useActions, useActivity, useContactsById, useInvoices, useInvoicesById, useProfile } from "@/lib/queries";
+import { qk } from "@/lib/queryKeys";
 import { actionStatusDisplay } from "@/lib/status";
 import { useWorkspace } from "@/lib/workspace";
 import type { Contact, PendingAction } from "@/types/api";
@@ -70,7 +72,14 @@ export function Dashboard() {
       return n;
     });
   const t = useT();
+  const queryClient = useQueryClient();
   const m = useMoney();
+
+  // Always fetch fresh profile data so a currency change in Settings is
+  // reflected immediately on the dashboard (React Query caches profile for 5 min).
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: qk.profile });
+  }, [queryClient]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 px-4 pt-6 sm:px-6 sm:pt-8">
