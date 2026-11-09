@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, FileText, Lock, UserPlus, Wallet } from "lucide-react";
+import { ArrowRight, BellRing, Check, FileText, Lock, UserPlus, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
