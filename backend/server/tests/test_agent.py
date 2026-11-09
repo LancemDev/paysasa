@@ -1,6 +1,7 @@
 from app.agent.tools import TOOLS
 from app.paypal_contract import PayPalError
 from tests.conftest import auth, call, fetchall, fetchone, reply, result_of, turn_calls
+from tests.helpers import sent_invoice_with_payout
 
 DEMO = ("Send an invoice to John Doe (john@example.com) for $1,200 for the Q3 Video Campaign. "
         "Once paid, schedule a payout of 20% to my editor, Sarah.")
@@ -216,6 +217,37 @@ async def test_message_validation_and_auth(client, user):
     assert r.status_code == 401 and r.json()["error"]["code"] == "unauthorized"
 
 
+async def test_draft_reminder_queues_one_for_approval(client, pool, user, llm, adapter):
+    s = await sent_invoice_with_payout(pool, adapter, user)
+    llm.completion = "Hi John, a gentle reminder that $1,200.00 for the Q3 Video Campaign is overdue. Kwame"
+    res = await run_tool(client, user, llm, "draft_reminder", invoice_id=str(s["invoice_id"]))
+    assert res["status"] == "awaiting_approval" and res["already_queued"] is False
+    assert res["summary"] == "Remind John Doe: $1,200.00 is 5 days overdue"
+    assert res["draft_message"].startswith("Hi John") and res["contact"] == "John Doe"
+
+    [a] = await fetchall(pool, "select * from pending_actions where type = 'invoice_reminder'")
+    assert a["status"] == "awaiting_approval" and a["trigger_invoice_id"] == s["invoice_id"]
+    assert a["agent_run_id"] is not None and str(a["id"]) == res["action_id"]
+    assert (await fetchone(pool, "select event from activity_log where entity_id = %s", a["id"]))["event"] \
+        == "reminder.drafted"
+
+    # Asking again returns the waiting reminder instead of queueing a second one.
+    again = await run_tool(client, user, llm, "draft_reminder", invoice_id=str(s["invoice_id"]))
+    assert again["already_queued"] is True and again["action_id"] == res["action_id"]
+    assert len(await fetchall(pool, "select id from pending_actions where type = 'invoice_reminder'")) == 1
+
+
+async def test_draft_reminder_refuses_unsent_and_foreign_invoices(client, pool, user, other_user, llm, adapter):
+    s = await sent_invoice_with_payout(pool, adapter, user)
+    async with pool.connection() as conn:
+        await conn.execute("update invoices set status = 'paid' where id = %s", (s["invoice_id"],))
+    res = await run_tool(client, user, llm, "draft_reminder", invoice_id=str(s["invoice_id"]))
+    assert "paid" in res["error"]
+    res = await run_tool(client, other_user, llm, "draft_reminder", invoice_id=str(s["invoice_id"]))
+    assert "No invoice" in res["error"]
+    assert await fetchall(pool, "select id from pending_actions where type = 'invoice_reminder'") == []
+
+
 def test_no_approval_tool():
-    assert set(TOOLS) == {"find_contact", "create_contact", "send_invoice", "schedule_payout",
+    assert set(TOOLS) == {"find_contact", "create_contact", "send_invoice", "schedule_payout", "draft_reminder",
                           "list_invoices", "list_pending_actions"}

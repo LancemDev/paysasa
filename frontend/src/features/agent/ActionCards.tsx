@@ -1,4 +1,4 @@
-import { ArrowRight, FileText, Lock, UserPlus, Wallet } from "lucide-react";
+import { ArrowRight, BellRing, FileText, Lock, UserPlus, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -22,6 +22,8 @@ export function ActionCards({ cards }: { cards: ActionCardModel[] }) {
           <InvoiceCard key={c.key} card={c} />
         ) : c.kind === "payout" ? (
           <PayoutCard key={c.key} card={c} />
+        ) : c.kind === "reminder" ? (
+          <ReminderCard key={c.key} card={c} />
         ) : (
           <ContactCard key={c.key} card={c} />
         ),
@@ -146,6 +148,49 @@ function PayoutCard({ card }: { card: Extract<ActionCardModel, { kind: "payout" 
         </dd>
       </dl>
       <p className="mt-2 text-muted">Nothing is sent until you approve it.</p>
+    </Card>
+  );
+}
+
+function ReminderCard({ card }: { card: Extract<ActionCardModel, { kind: "reminder" }> }) {
+  const { data: actions } = useActions();
+  const { openApproval, openInvoice } = useWorkspace();
+  const live = actions?.find((a) => a.id === card.actionId);
+  const r = card.result;
+  const status = live?.status ?? r.status;
+  const awaiting = status === "awaiting_approval";
+  const message = live?.draft_message ?? r.draft_message;
+
+  return (
+    <Card
+      icon={<BellRing className="size-4" />}
+      title={awaiting ? "Reminder ready for your approval" : "Payment reminder"}
+      badge={<StatusBadge size="sm" status={actionStatusDisplay(status, "invoice_reminder")} />}
+      footer={
+        <>
+          {awaiting && (
+            <Button size="sm" variant="primary" onClick={() => openApproval(card.actionId)}>
+              Review and send
+            </Button>
+          )}
+          {live?.trigger_invoice_id && (
+            <Button size="sm" variant="ghost" onClick={() => openInvoice(live.trigger_invoice_id!)}>
+              View invoice
+            </Button>
+          )}
+        </>
+      }
+    >
+      <dl className="grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-1">
+        <dt className="text-muted">Client</dt>
+        <dd>{r.contact}</dd>
+        <dt className="text-muted">Invoice</dt>
+        <dd>
+          {r.description} <span className="tabular font-semibold">{r.amount}</span>
+        </dd>
+      </dl>
+      {message && <blockquote className="mt-2 whitespace-pre-line rounded-xl bg-surface-2 px-3 py-2 text-muted">{message}</blockquote>}
+      <p className="mt-2 text-muted">PayPal sends it only after you approve it.</p>
     </Card>
   );
 }
