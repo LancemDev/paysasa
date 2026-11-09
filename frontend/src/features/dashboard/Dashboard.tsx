@@ -15,7 +15,7 @@ import { useIsWide } from "@/hooks/useMediaQuery";
 import { DEMO_PROMPT } from "@/lib/agent";
 import { dueLabel, relativeTime } from "@/lib/dates";
 import { useT } from "@/lib/i18n";
-import { DEFAULT_CURRENCY, formatMoney, formatTotals, totalsByCurrency } from "@/lib/money";
+import { formatMoney, formatTotals, totalsByCurrency } from "@/lib/money";
 import { useActions, useActivity, useContactsById, useInvoices, useInvoicesById, useProfile } from "@/lib/queries";
 import { actionStatusDisplay } from "@/lib/status";
 import { useWorkspace } from "@/lib/workspace";
@@ -35,6 +35,7 @@ function useMoney() {
   const invoices = useInvoices();
   const actions = useActions();
   const contacts = useContactsById();
+  const { data: profile } = useProfile();
   const rows = useMemo(() => buildInvoiceRows(invoices.data ?? [], contacts, actions.data ?? []), [invoices.data, contacts, actions.data]);
   const list = actions.data ?? [];
   const awaiting = rows.filter((r) => r.status === "awaiting" || r.status === "overdue");
@@ -54,6 +55,8 @@ function useMoney() {
     approvals,
     actions: list,
     contacts,
+    /** The user's chosen default currency from Settings, used for dashboard zeros and charts. */
+    displayCurrency: (profile?.default_currency?.trim() ?? "KES").toUpperCase(),
   };
 }
 
@@ -194,7 +197,7 @@ function MoneyCard({ m, className }: { m: Money; className?: string }) {
           <h2 id="money-h" className="text-[12px] font-semibold tracking-[0.16em] text-lime/85 uppercase">
             {t("dash.waiting")}
           </h2>
-          <p className="display tabular mt-2 text-[44px] leading-none break-words sm:text-[56px]">{m.loading ? <Skeleton className="h-12 w-56 bg-white/10" /> : waiting || formatMoney(0, DEFAULT_CURRENCY)}</p>
+          <p className="display tabular mt-2 text-[44px] leading-none break-words sm:text-[56px]">{m.loading ? <Skeleton className="h-12 w-56 bg-white/10" /> : waiting || formatMoney(0, m.displayCurrency)}</p>
           <p className="mt-2 text-[14px] text-white/70">
             {m.awaiting.length ? `${m.awaiting.length} ${m.awaiting.length === 1 ? t("dash.invoice") : t("dash.invoices")}` : t("dash.nothingOutstanding")}
             {m.overdue.length > 0 && (
@@ -216,7 +219,7 @@ function MoneyCard({ m, className }: { m: Money; className?: string }) {
             <WalletStack
               cards={cards}
               label={waiting ? t("land.walletLabel") : t("dash.paid30")}
-              total={waiting || paid || formatMoney(0, DEFAULT_CURRENCY)}
+              total={waiting || paid || formatMoney(0, m.displayCurrency)}
               onSelect={select}
               hint={t("dash.walletHint")}
             />
@@ -428,11 +431,7 @@ function Panel({ title, figure, caption, children }: { title: string; figure: st
 function CashFlow({ m }: { m: Money }) {
   const t = useT();
   const [hover, setHover] = useState<number | null>(null);
-  const currency = useMemo(() => {
-    const c = new Map<string, number>();
-    m.rows.forEach((r) => c.set(r.currency, (c.get(r.currency) ?? 0) + 1));
-    return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? DEFAULT_CURRENCY;
-  }, [m.rows]);
+  const currency = m.displayCurrency;
   const months = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 6 }, (_, i) => {
@@ -447,7 +446,7 @@ function CashFlow({ m }: { m: Money }) {
       const billed = m.rows.filter((r) => r.currency === currency && inMonth(r.invoice.sent_at ?? r.invoice.created_at)).reduce((s, r) => s + r.amount_minor, 0);
       return { label: d.toLocaleString(undefined, { month: "short" }), paid, billed };
     });
-  }, [m.rows, currency]);
+  }, [m.rows, m.displayCurrency]);
   const max = Math.max(...months.map((x) => x.paid), 1);
   const total = months.reduce((s, x) => s + x.paid, 0);
   const H = 96;
@@ -571,7 +570,7 @@ function Clients({ m }: { m: Money }) {
       }));
   }, [m.rows]);
   return (
-    <Panel title={t("dash.clients")} figure={billed || formatMoney(0, DEFAULT_CURRENCY)} caption={t("dash.billedTo", { n: clientCount })}>
+    <Panel title={t("dash.clients")} figure={billed || formatMoney(0, m.displayCurrency)} caption={t("dash.billedTo", { n: clientCount })}>
       <BarList items={items} empty={t("dash.noClients")} />
       <Breakdown
         items={[
@@ -614,7 +613,7 @@ function Team({ m }: { m: Money }) {
   const sent = formatTotals(totalsByCurrency(m.payouts.filter((a) => a.status === "submitted" || a.status === "succeeded").map((a) => ({ amount_minor: a.amount_minor, currency: a.currency }))));
   const people = new Set(m.payouts.map((a) => a.payee_contact_id)).size;
   return (
-    <Panel title={t("dash.team")} figure={sent || formatMoney(0, DEFAULT_CURRENCY)} caption={t("dash.sentTo", { n: people })}>
+    <Panel title={t("dash.team")} figure={sent || formatMoney(0, m.displayCurrency)} caption={t("dash.sentTo", { n: people })}>
       <BarList items={items} empty={t("dash.noTeam")} />
       <Breakdown
         items={[
