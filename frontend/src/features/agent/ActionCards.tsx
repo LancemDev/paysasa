@@ -91,6 +91,16 @@ function InvoiceCard({ card }: { card: Extract<ActionCardModel, { kind: "invoice
   );
 }
 
+const DECIDED_LABEL: Record<string, string> = {
+  approved: "Approved",
+  executing: "Approved",
+  submitted: "Approved",
+  succeeded: "Paid out",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+  failed: "Failed",
+};
+
 function PayoutCard({ card }: { card: Extract<ActionCardModel, { kind: "payout" }> }) {
   const { data: actions } = useActions();
   const invoices = useInvoicesById();
@@ -104,6 +114,7 @@ function PayoutCard({ card }: { card: Extract<ActionCardModel, { kind: "payout" 
   const payee = live?.payee_contact_id ? contacts.get(live.payee_contact_id) : undefined;
   const awaiting = live?.status === "awaiting_approval";
   const locked = (live?.status ?? r.status) === "locked";
+  const decidedLabel = live && !awaiting && !locked ? DECIDED_LABEL[live.status] ?? status.label : null;
 
   return (
     <Card
@@ -115,6 +126,11 @@ function PayoutCard({ card }: { card: Extract<ActionCardModel, { kind: "payout" 
           {awaiting && (
             <Button size="sm" variant="primary" onClick={() => openApproval(card.actionId)}>
               Review and approve
+            </Button>
+          )}
+          {decidedLabel && (
+            <Button size="sm" variant="secondary" disabled icon={<Check aria-hidden className="size-3.5" />}>
+              {decidedLabel}
             </Button>
           )}
           {trigger && (
