@@ -9,6 +9,7 @@ import { useConnectionStatus } from "@/lib/realtime";
 import { LogoMark } from "@/components/layout/Logo";
 import { VoiceButton } from "@/components/ui/VoiceButton";
 import { ActionCards } from "./ActionCards";
+import { AssistantText } from "./AssistantText";
 import { useAgent, type AssistantMessage, type ChatMessage } from "./AgentProvider";
 import { StepTrace } from "./StepTrace";
 
@@ -144,12 +145,12 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
       {message.text && (
         <div
           className={cn(
-            "w-fit max-w-[95%] rounded-2xl rounded-bl-md px-3.5 py-2.5 break-words whitespace-pre-wrap",
+            "w-fit max-w-[95%] rounded-2xl rounded-bl-md px-3.5 py-2.5 break-words",
             message.status === "error" ? "border border-danger/30 bg-danger-soft" : message.status === "stopped" ? "bg-warning-soft" : "bg-surface-2",
           )}
           role={message.status === "error" ? "alert" : undefined}
         >
-          {message.text}
+          <AssistantText text={message.text} />
         </div>
       )}
       {(message.status === "error" || message.status === "stopped") && message.retryText && (
