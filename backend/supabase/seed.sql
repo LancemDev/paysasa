@@ -4,6 +4,9 @@
 -- 3. Run this file. It is safe to re-run.
 -- 4. To make the sent invoices real (so reminders and payments work), run from backend/server:
 --    .venv/bin/python -m scripts.link_seed_to_paypal   (needs PAYPAL_ADAPTER=real credentials)
+--
+-- Payout idempotency keys get a random suffix. PayPal refuses to reuse a sender_batch_id, so a
+-- re-seeded payout must not reuse the key an earlier demo run already sent.
 do $$
 declare
   demo_email  text := 'demo@paysasa.app';                 -- the demo user's login email
@@ -82,10 +85,10 @@ begin
   values
     (act_priya, uid, 'payout', 'awaiting_approval', inv_amara_paid, c_priya,
      37500, 'USD', 15.00, 'Payout Priya Nair $375.00', null,
-     'demo-payout-priya-1106', '2026-09-12 09:05+00', '2026-10-10 13:45+00', null, null),
+     'demo-payout-priya-1106-' || substr(md5(random()::text), 1, 10), '2026-09-12 09:05+00', '2026-10-10 13:45+00', null, null),
     (act_marcus, uid, 'payout', 'locked', inv_daniel_sent, c_marcus,
      20000, 'USD', 10.00, 'Payout Marcus Reed $200.00 upon settlement', null,
-     'demo-payout-marcus-1102', '2026-11-01 10:05+00', '2026-11-01 10:05+00', null, null),
+     'demo-payout-marcus-1102-' || substr(md5(random()::text), 1, 10), '2026-11-01 10:05+00', '2026-11-01 10:05+00', null, null),
     (act_reminder, uid, 'invoice_reminder', 'failed', inv_amara_overdue, null,
      null, null, null, 'Remind Amara Okafor: $3,500.00 is 9 days overdue',
      'Hi Amara, a friendly nudge that invoice DEMO-INV-1001 for Brand Film — Phase 2 ($3,500.00) was due on 28 October. Could you let me know when payment is scheduled? Thanks, Kwame',
@@ -186,10 +189,10 @@ begin
   values
     (act_elena_await, uid, 'payout', 'awaiting_approval', inv_kofi_paid, c_elena,
      18000, 'USD', 12.00, 'Payout Elena Rossi $180.00', null,
-     'demo-payout-elena-1109', null, '2026-10-27 15:05+00', '2026-11-07 18:20+00', null, null),
+     'demo-payout-elena-1109-' || substr(md5(random()::text), 1, 10), null, '2026-10-27 15:05+00', '2026-11-07 18:20+00', null, null),
     (act_priya_locked, uid, 'payout', 'locked', inv_zara_sent, c_priya,
      42000, 'USD', 15.00, 'Payout Priya Nair $420.00 upon settlement', null,
-     'demo-payout-priya-1108', null, '2026-11-05 09:35+00', '2026-11-05 09:35+00', null, null),
+     'demo-payout-priya-1108-' || substr(md5(random()::text), 1, 10), null, '2026-11-05 09:35+00', '2026-11-05 09:35+00', null, null),
     (act_zara_remind, uid, 'invoice_reminder', 'failed', inv_zara_overdue, null,
      null, null, null, 'Remind Zara Mensah: $4,200.00 is 8 days overdue',
      'Hi Zara, a quick reminder that invoice DEMO-INV-1007 for the App Launch Teaser ($4,200.00) was due on 1 November. Could you share when payment will go out? Thanks, Kwame',
