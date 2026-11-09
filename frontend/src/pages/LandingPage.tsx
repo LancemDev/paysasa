@@ -5,7 +5,6 @@ import { Link, Navigate } from "react-router-dom";
 import { AccessibilityMenu, ThemeToggle } from "@/components/layout/DisplayControls";
 import { LangSwitch } from "@/components/layout/LangSwitch";
 import { Logo, LogoMark } from "@/components/layout/Logo";
-import { ModeBanner } from "@/components/layout/ModeBanner";
 import { FlowLine } from "@/components/ui/FlowLine";
 import { WalletStack, type WalletCard } from "@/components/ui/WalletStack";
 import { cn } from "@/components/ui/cn";
@@ -26,7 +25,6 @@ export function LandingPage() {
   if (!loading && user) return <Navigate to="/" replace />;
   return (
     <div className="min-h-full bg-bg">
-      <ModeBanner />
       <Nav />
       <main>
         <Hero />

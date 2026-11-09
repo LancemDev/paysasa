@@ -3,7 +3,6 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { Logo } from "@/components/layout/Logo";
-import { ModeBanner } from "@/components/layout/ModeBanner";
 import { useAuth } from "@/auth/AuthProvider";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
@@ -21,7 +20,6 @@ function friendlyAuthError(message: string): string {
 function AuthLayout({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <ModeBanner />
       <div className="grid flex-1 lg:grid-cols-[1fr_1.1fr]">
         <aside className="grain relative hidden flex-col justify-between overflow-hidden bg-forest p-10 text-white lg:flex">
           <div aria-hidden className="absolute -top-32 -left-24 size-[480px] rounded-full bg-[radial-gradient(circle,rgb(200_241_105/0.22),transparent_65%)]" />
