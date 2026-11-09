@@ -29,10 +29,10 @@ describe("step trace", () => {
   });
 
   it("marks tool errors as failed steps with the reason", () => {
-    const [step] = stepsFromToolCalls([{ name: "send_invoice", args: {}, result: { error: "Currency 'KES' is not supported." } }]);
+    const [step] = stepsFromToolCalls([{ name: "send_invoice", args: {}, result: { error: "Currency 'XYZ' is not supported." } }]);
     expect(step.status).toBe("error");
     expect(step.label).toBe("Couldn't send the invoice");
-    expect(step.detail).toContain("KES");
+    expect(step.detail).toContain("XYZ");
   });
 });
 
@@ -54,7 +54,7 @@ describe("clarification detection", () => {
   });
 
   it("offers currency quick replies", () => {
-    expect(detectClarification("Which currency should I use?", [])?.options).toEqual(["Use USD", "Use GBP", "Use EUR"]);
+    expect(detectClarification("Which currency should I use?", [])?.options).toEqual(["Use KES", "Use USD", "Use EUR", "Use GBP", "Use CAD", "Use AUD", "Use CHF"]);
   });
 
   it("ignores questions after the agent already acted", () => {

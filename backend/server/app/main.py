@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.contacts.router import router as contacts_router
 from app.db import close_pool, open_pool
 from app.errors import install_error_handlers
+from app.profile.router import router as profile_router
 from app.webhooks.router import router as webhooks_router
 
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +31,7 @@ def create_app(*, manage_pool: bool = True) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[o.strip() for o in settings.cors_origin.split(",") if o.strip()],
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "PUT", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
     install_error_handlers(app)
@@ -44,6 +45,7 @@ def create_app(*, manage_pool: bool = True) -> FastAPI:
     app.include_router(agent_router)
     app.include_router(actions_router)
     app.include_router(contacts_router)
+    app.include_router(profile_router)
     app.include_router(webhooks_router)
     if settings.enable_dev_routes:
         from app.dev.router import router as dev_router

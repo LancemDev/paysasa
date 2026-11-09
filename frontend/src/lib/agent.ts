@@ -125,7 +125,7 @@ export function detectClarification(reply: string, calls: ToolCallLog[]): Clarif
 
   const lower = text.toLowerCase();
   if (/\bemail\b/.test(lower)) return { question: text, options: [], placeholder: "Type their email address…" };
-  if (/\bcurrenc/.test(lower)) return { question: text, options: ["Use USD", "Use GBP", "Use EUR"], placeholder: "Or type a currency…" };
+  if (/\bcurrenc/.test(lower)) return { question: text, options: ["Use KES", "Use USD", "Use EUR", "Use GBP", "Use CAD", "Use AUD", "Use CHF"], placeholder: "Or type a currency code (e.g. KES)…" };
   if (/\bamount\b|how much/.test(lower)) return { question: text, options: [], placeholder: "Type the amount, e.g. 1,200…" };
   if (/\bwhich\b/.test(lower)) return { question: text, options: [], placeholder: "Type a name or email to choose…" };
   return { question: text, options: [], placeholder: "Type your answer…" };

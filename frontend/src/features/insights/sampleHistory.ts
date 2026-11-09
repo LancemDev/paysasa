@@ -7,12 +7,12 @@ import type { StudioInput } from "./studioData";
  * never mixed into the live dashboard grids. Ids are prefixed "sample-".
  */
 const OWNER = "sample-owner";
-const CLIENTS: [name: string, email: string, currency: "USD" | "GBP" | "EUR", base: number][] = [
+const CLIENTS: [name: string, email: string, currency: string, base: number][] = [
   ["Northwind Media", "ap@northwind.example", "USD", 1800],
   ["Brightline Studios", "finance@brightline.example", "GBP", 950],
-  ["Karoo Films", "accounts@karoo.example", "USD", 1200],
+  ["Nairobi Creative Co.", "billing@nairobi-creative.example", "KES", 125000],
   ["Lumen Agentur", "rechnung@lumen.example", "EUR", 1100],
-  ["Savanna Coffee Co.", "hello@savanna.example", "USD", 600],
+  ["Savanna Coffee Co.", "hello@savanna.example", "KES", 45000],
 ];
 const PROJECTS = ["Brand film", "Social cut-downs", "Pitch deck design", "Product launch video", "Event highlights", "Logo refresh", "Motion graphics pack"];
 

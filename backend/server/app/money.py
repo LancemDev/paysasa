@@ -1,8 +1,9 @@
 """Money helpers. Amounts are integer minor units; no floating-point maths on money."""
 import re
 
-ALLOWED_CURRENCIES: tuple[str, ...] = ("USD", "GBP", "EUR")
-_SYMBOLS = {"USD": "$", "GBP": "£", "EUR": "€"}
+DEFAULT_CURRENCY = "KES"
+ALLOWED_CURRENCIES: tuple[str, ...] = ("KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF")
+_SYMBOLS = {"KES": "KSh ", "USD": "$", "EUR": "€", "GBP": "£", "CAD": "CA$", "AUD": "A$", "CHF": "CHF "}
 _DECIMALS = 2  # every allowed currency uses 2 decimal places
 
 _AMOUNT_RE = re.compile(r"^\d+(\.\d+)?$")

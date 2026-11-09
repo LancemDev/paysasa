@@ -2,7 +2,20 @@
  * Money is integer minor units plus an ISO 4217 code (backend contract). We never do float maths on money:
  * the decimal string is built with integer arithmetic and handed to Intl.NumberFormat as a string.
  */
-export const SUPPORTED_DISPLAY_CURRENCIES = ["USD", "GBP", "EUR", "KES", "ZAR", "NGN"] as const;
+export const DEFAULT_CURRENCY = "KES" as const;
+export const SELECTABLE_CURRENCIES = ["KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF"] as const;
+export type SelectableCurrency = (typeof SELECTABLE_CURRENCIES)[number];
+export const SUPPORTED_DISPLAY_CURRENCIES = ["KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF", "ZAR", "NGN"] as const;
+
+export const CURRENCY_LABELS: Record<string, string> = {
+  KES: "KES — Kenyan Shilling (KSh)",
+  USD: "USD — US Dollar ($)",
+  EUR: "EUR — Euro (€)",
+  GBP: "GBP — British Pound (£)",
+  CAD: "CAD — Canadian Dollar (CA$)",
+  AUD: "AUD — Australian Dollar (A$)",
+  CHF: "CHF — Swiss Franc (CHF)",
+};
 
 const formatters = new Map<string, Intl.NumberFormat>();
 
@@ -20,7 +33,7 @@ function formatter(currency: string, locale?: string, compact = false): Intl.Num
   return f;
 }
 
-/** Number of minor-unit digits for a currency (2 for USD/GBP/EUR/KES/ZAR/NGN, 0 for JPY...). */
+/** Number of minor-unit digits for a currency (2 for the supported 2-decimal currencies, 0 for JPY...). */
 export function minorDigits(currency: string): number {
   try {
     return formatter(normalizeCurrency(currency)).resolvedOptions().maximumFractionDigits ?? 2;

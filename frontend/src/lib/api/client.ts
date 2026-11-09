@@ -28,7 +28,7 @@ async function send(path: string, init: RequestInit, token: string | null): Prom
 
 /** The one place the frontend talks to the FastAPI backend. Always resolves to data or throws ApiError. */
 export async function request<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH" | "PUT",
   path: string,
   opts: { body?: Json; signal?: AbortSignal; auth?: boolean } = {},
 ): Promise<T> {

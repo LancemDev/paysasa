@@ -4,8 +4,10 @@ import type {
   CreateContactRequest,
   CreateContactResponse,
   HealthResponse,
+  ProfileResponse,
   RunChaseResponse,
   SimulatePaidResponse,
+  UpdateProfileRequest,
   Uuid,
 } from "@/types/api";
 import { request } from "./client";
@@ -27,6 +29,9 @@ export const api = {
 
   createContact: (body: CreateContactRequest) =>
     request<CreateContactResponse>("POST", "/api/contacts", { body: body as unknown as Record<string, unknown> }),
+
+  updateProfile: (body: UpdateProfileRequest) =>
+    request<ProfileResponse>("PATCH", "/api/profile", { body: body as unknown as Record<string, unknown> }),
 
   // Demo/rehearsal helpers: only mounted when the backend has ENABLE_DEV_ROUTES=true.
   dev: {
