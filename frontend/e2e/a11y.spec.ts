@@ -17,7 +17,8 @@ for (const scheme of ["light", "dark"] as const) {
   test(`no WCAG A/AA violations: sign-in, dashboard, approval (${scheme})`, async ({ page }, info) => {
     test.skip(info.project.name !== "desktop", "one viewport is enough for axe");
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
-    await createFakeBackend(page).install();
+    const backend = createFakeBackend(page);
+    await backend.install();
 
     await page.goto("/welcome");
     expect((await new AxeBuilder({ page }).withTags(wcag).analyze()).violations).toEqual([]);
@@ -33,8 +34,7 @@ for (const scheme of ["light", "dark"] as const) {
     expect(dash.violations).toEqual([]);
     await page.getByRole("button", { name: "Close assistant" }).click();
 
-    await page.getByRole("button", { name: /Demo helper/ }).click();
-    await page.getByRole("button", { name: "Mark as paid (simulated)" }).click();
+    backend.clientPays();
     await page.goto("/approvals");
     await page.getByRole("button", { name: "Review payout" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();

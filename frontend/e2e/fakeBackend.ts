@@ -2,7 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 /**
  * In-browser stand-in for Supabase (auth + PostgREST) and the FastAPI backend, following the real contracts in
- * docs/frontend-analysis.md. State changes mirror backend/server/app (agent tools, simulate-paid, approve).
+ * docs/frontend-analysis.md. State changes mirror backend/server/app (agent tools, the paid webhook, approve).
  */
 const USER = { id: "11111111-1111-4111-8111-111111111111", email: "demo@paysasa.app", aud: "authenticated", role: "authenticated", app_metadata: {}, user_metadata: {}, created_at: "2026-10-01T00:00:00Z" };
 const now = () => new Date().toISOString();
@@ -78,19 +78,6 @@ export function createFakeBackend(page: Page) {
       return json(route, { run_id: runId, reply });
     }
 
-    const paid = /^\/dev\/simulate-paid\/(.+)$/.exec(path);
-    if (paid) {
-      const inv = db.invoices.find((i) => i.id === paid[1]);
-      if (!inv) return json(route, { error: { code: "not_found", message: "Invoice not found" } }, 404);
-      Object.assign(inv, { status: "paid", paid_at: now(), paypal_status: "PAID", updated_at: now() });
-      log("system", "invoice.paid", "Daniel Carter paid $1,200.00 for Q3 Video Campaign", "invoice", String(inv.id));
-      for (const a of db.pending_actions.filter((a) => a.trigger_invoice_id === inv.id && a.status === "locked")) {
-        Object.assign(a, { status: "awaiting_approval", summary: "Payout Sarah $240.00", updated_at: now() });
-        log("system", "payout.unlocked", "Payout Sarah $240.00 unlocked: needs your approval", "pending_action", String(a.id));
-      }
-      return json(route, { invoice: inv });
-    }
-
     const approve = /^\/api\/actions\/(.+)\/approve$/.exec(path);
     if (approve) {
       const a = db.pending_actions.find((x) => x.id === approve[1]);
@@ -104,8 +91,21 @@ export function createFakeBackend(page: Page) {
     return json(route, { error: { code: "not_found", message: "Not Found" } }, 404);
   }
 
+  /** What PayPal's INVOICE.PAID webhook does on the server: invoice paid, its locked payouts unlocked. */
+  function clientPays() {
+    const inv = db.invoices.find((i) => i.status === "sent");
+    if (!inv) throw new Error("no sent invoice to pay");
+    Object.assign(inv, { status: "paid", paid_at: now(), paypal_status: "PAID", updated_at: now() });
+    log("paypal", "invoice.paid", "Daniel Carter paid $1,200.00 for Q3 Video Campaign", "invoice", String(inv.id));
+    for (const a of db.pending_actions.filter((a) => a.trigger_invoice_id === inv.id && a.status === "locked")) {
+      Object.assign(a, { status: "awaiting_approval", summary: "Payout Sarah $240.00", updated_at: now() });
+      log("paypal", "payout.unlocked", "Payout Sarah $240.00 unlocked: needs your approval", "pending_action", String(a.id));
+    }
+  }
+
   return {
     db,
+    clientPays,
     async install({ tour = false }: { tour?: boolean } = {}) {
       // The first-login welcome tour is covered by its own test; skip it elsewhere (keeps other saved settings).
       if (!tour)

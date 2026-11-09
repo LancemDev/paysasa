@@ -7,15 +7,12 @@ import { AgentPanel } from "@/features/agent/AgentPanel";
 import { AgentProvider, useAgent } from "@/features/agent/AgentProvider";
 import { ApprovalModal } from "@/features/approvals/ApprovalModal";
 import { InvoiceDrawer } from "@/features/dashboard/InvoiceDrawer";
-import { DemoDock } from "@/features/demo/DemoPanel";
 import { Tour } from "@/features/onboarding/Tour";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
-import { env } from "@/lib/env";
 import { useT } from "@/lib/i18n";
 import { RealtimeProvider } from "@/lib/realtime";
 import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
 import { Header, MobileTabBar } from "./Header";
-import { ModeBanner } from "./ModeBanner";
 import { RealtimeToasts } from "./RealtimeToasts";
 
 /**
@@ -57,7 +54,6 @@ function Shell() {
       <a href="#main" className="sr-only z-50 rounded bg-surface p-2 focus:not-sr-only focus:fixed focus:top-2 focus:left-2">
         {t("nav.skip")}
       </a>
-      <ModeBanner />
       <Header />
       <main id="main" className="min-w-0 flex-1 pb-28 md:pb-10">
         <ErrorBoundary region="page">
@@ -66,7 +62,6 @@ function Shell() {
       </main>
       {desktop ? <DesktopAgent /> : <MobileAgent />}
       {!desktop && <MobileTabBar />}
-      {env.enableDemo && <DemoDock />}
       <Tour />
       <ErrorBoundary region="invoice details" className="hidden">
         <InvoiceDrawer />

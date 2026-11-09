@@ -54,7 +54,7 @@ button. Below 768px, grids become card lists and the nav becomes a bottom-safe t
       └─────────────────────────────────────────────────┘
     Dashboard rows flash in (AG Grid transaction): Invoice in "Awaiting payment"; payout in Payouts, locked.
 
-[4] Client pays (webhook, or the Demo helper's "Simulate client payment" -> /dev/simulate-paid)
+[4] Client pays on PayPal (the INVOICE.PAID webhook updates the backend)
     Invoice row flashes, moves to "Paid" group. Toast: "Daniel Carter paid $1,200.00".
     Payout row: 🔒 Locked -> ⏳ Needs approval. Header badge: Needs your approval (1).
 
@@ -144,5 +144,4 @@ In dark mode, a lighter surface carries elevation rather than a shadow.
   GBP or EUR. There's no FX, so no KES equivalent.
 - **Follow-up reminders** are `invoice_reminder` actions: an editable draft, with Send (approve with the edited
   `message`) and Discard (reject).
-- **Demo helper:** shown when `VITE_ENABLE_DEMO=true`, labelled as a demo helper. It calls the real
-  `/dev/simulate-paid` and `/dev/run-chase`.
+- **Sample history:** with `VITE_ENABLE_DEMO=true`, Insights can include sample history, labelled as demo only.

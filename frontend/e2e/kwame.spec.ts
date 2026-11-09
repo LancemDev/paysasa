@@ -8,7 +8,6 @@ test("Kwame: prompt → invoice + locked payout → client pays → approve payo
   // Landing page → sign in
   await page.goto("/");
   await expect(page).toHaveURL(/welcome/);
-  await expect(page.getByText(/No real money moves/).first()).toBeVisible();
   await page.getByRole("link", { name: "Open the live demo" }).click();
   await expect(page).toHaveURL(/sign-in/);
   await page.getByLabel("Email").fill("demo@paysasa.app");
@@ -35,9 +34,9 @@ test("Kwame: prompt → invoice + locked payout → client pays → approve payo
   await expect(page.getByText("Awaiting payment").first()).toBeVisible();
   await expect(page.getByText("Q3 Video Campaign").first()).toBeVisible();
 
-  // 4. Client pays (demo helper → real /dev/simulate-paid contract)
-  await page.getByRole("button", { name: /Demo helper/ }).click();
-  await page.getByRole("button", { name: "Mark as paid (simulated)" }).click();
+  // 4. Client pays: PayPal's webhook updates the server; the app picks it up on reload
+  backend.clientPays();
+  await page.reload();
 
   // 5. Live update: Paid, and the payout asks for approval
   await expect(page.getByRole("link", { name: /Needs your approval/ }).first()).toBeVisible();

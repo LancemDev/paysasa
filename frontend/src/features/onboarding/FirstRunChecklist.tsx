@@ -9,7 +9,6 @@ import { cn } from "@/components/ui/cn";
 import { useAgent } from "@/features/agent/AgentProvider";
 import { DEMO_PROMPT } from "@/lib/agent";
 import { api } from "@/lib/api";
-import { env } from "@/lib/env";
 import { useActions, useContacts, useInvoices } from "@/lib/queries";
 import { useSettings } from "@/lib/settings";
 import { useWorkspace } from "@/lib/workspace";
@@ -76,7 +75,7 @@ export function FirstRunChecklist() {
     {
       title: t("cycle.paid"),
       done: invoices.some((i) => i.status === "paid" && payouts.some((p) => p.trigger_invoice_id === i.id)),
-      next: env.enableDemo ? t("cycle.nextWaitDemo") : t("cycle.nextWait"),
+      next: t("cycle.nextWait"),
     },
     {
       title: t("cycle.approved"),
