@@ -1,6 +1,7 @@
-"""The six tools the LLM may call. Guardrails live here, in code, not in the prompt.
+"""The seven tools the LLM may call. Guardrails live here, in code, not in the prompt.
 
-No tool approves or executes a payout; schedule_payout only queues a locked action.
+No tool approves or executes a payout or sends a reminder; schedule_payout and draft_reminder only queue
+actions that need the user's approval.
 """
 import re
 import uuid
@@ -14,7 +15,8 @@ from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from app.activity import log_activity
-from app.agent.llm import ToolSpec
+from app.agent.draft_reminder import draft_reminder as write_reminder
+from app.agent.llm import LLM, ToolSpec
 from app.money import (
     ALLOWED_CURRENCIES, MoneyError, check_currency, format_money, parse_amount,
     parse_percent_hundredths, split_amount,
@@ -39,6 +41,7 @@ class ToolContext:
     default_currency: str
     max_amount_minor: int
     today: date
+    llm: LLM | None = None
 
 
 def _uuid(value: str, what: str) -> UUID:
@@ -289,6 +292,84 @@ async def schedule_payout(ctx: ToolContext, args: SchedulePayoutArgs) -> tuple[d
     return result, f"Agent scheduled payout: {summary}"
 
 
+# --- draft_reminder --------------------------------------------------------------
+
+_OPEN_REMINDER = ("locked", "awaiting_approval", "executing")
+
+
+class DraftReminderArgs(BaseModel):
+    invoice_id: str
+
+
+def _reminder_result(action_id, summary: str, message: str, row: dict, *, existing: bool) -> dict:
+    return {"action_id": str(action_id), "status": "awaiting_approval", "summary": summary,
+            "draft_message": message, "contact": row["client_name"], "description": row["description"],
+            "amount": format_money(row["amount_minor"], row["currency"]), "needs_approval": True,
+            "already_queued": existing}
+
+
+async def draft_reminder(ctx: ToolContext, args: DraftReminderArgs) -> tuple[dict, str]:
+    invoice_id = _uuid(args.invoice_id, "invoice_id")
+    async with ctx.pool.connection() as conn:
+        cur = await conn.execute(
+            """select i.id, i.description, i.amount_minor, i.currency, i.status, i.due_date,
+                      c.name as client_name, coalesce(p.display_name, 'Your supplier') as sender_name
+               from invoices i join contacts c on c.id = i.contact_id
+               left join profiles p on p.id = i.owner_id
+               where i.id = %s and i.owner_id = %s""",
+            (invoice_id, ctx.owner_id),
+        )
+        inv = await cur.fetchone()
+        if inv is None:
+            raise ToolError(f"No invoice with id {invoice_id}.")
+        if inv["status"] != "sent":
+            raise ToolError(f"That invoice is {inv['status']}; reminders are only for sent, unpaid invoices.")
+        cur = await conn.execute(
+            """select id, summary, draft_message from pending_actions
+               where trigger_invoice_id = %s and type = 'invoice_reminder' and status = any(%s::action_status[])
+               order by created_at desc limit 1""",
+            (invoice_id, list(_OPEN_REMINDER)),
+        )
+        open_one = await cur.fetchone()
+    if open_one:
+        result = _reminder_result(open_one["id"], open_one["summary"], open_one["draft_message"] or "", inv, existing=True)
+        return result, f"Reminder already waiting for approval: {open_one['summary']}"
+
+    currency = inv["currency"].strip()
+    days = (ctx.today - inv["due_date"]).days if inv["due_date"] else 0
+    note = await write_reminder(
+        ctx.llm, client_name=inv["client_name"], sender_name=inv["sender_name"], description=inv["description"],
+        amount_minor=inv["amount_minor"], currency=currency, due_date=inv["due_date"] or ctx.today,
+        days_overdue=max(days, 0),
+    )
+    money = format_money(inv["amount_minor"], currency)
+    if days > 0:
+        summary = f"Remind {inv['client_name']}: {money} is {days} day{'s' if days != 1 else ''} overdue"
+    else:
+        summary = f"Remind {inv['client_name']} about {money} for {inv['description']}"
+    async with ctx.pool.connection() as conn:
+        async with conn.transaction():
+            # Same guard as the daily job, so a concurrent run cannot queue a second reminder.
+            cur = await conn.execute(
+                """insert into pending_actions (owner_id, type, status, trigger_invoice_id, summary,
+                                                draft_message, idempotency_key, agent_run_id)
+                   select %s, 'invoice_reminder', 'awaiting_approval', %s, %s, %s, %s, %s
+                   where not exists (select 1 from pending_actions a
+                                     where a.trigger_invoice_id = %s and a.type = 'invoice_reminder'
+                                       and a.status = any(%s::action_status[]))
+                   returning id""",
+                (ctx.owner_id, invoice_id, summary, note, f"reminder-{uuid.uuid4().hex}", ctx.run_id,
+                 invoice_id, list(_OPEN_REMINDER)),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise ToolError("A reminder for this invoice was just queued. Check your approvals.")
+            await log_activity(conn, owner_id=ctx.owner_id, actor="agent", event="reminder.drafted",
+                               message=f"Drafted a reminder for approval: {summary}",
+                               entity_type="pending_action", entity_id=row["id"])
+    return _reminder_result(row["id"], summary, note, inv, existing=False), f"Agent drafted a reminder: {summary}"
+
+
 # --- list_invoices / list_pending_actions --------------------------------------
 
 _INVOICE_STATUSES = ("draft", "sent", "paid", "cancelled", "failed", "overdue")
@@ -395,6 +476,11 @@ TOOLS: dict[str, Tool] = {t.spec.name: t for t in [
                         "amount": {"type": "string", "description": "Fixed amount as a decimal string"}},
                        ["trigger_invoice_id", "payee_contact_id"])),
          SchedulePayoutArgs, schedule_payout),
+    Tool(ToolSpec("draft_reminder", "Draft a payment reminder for a sent, unpaid invoice and queue it for the "
+                  "user's approval. PayPal sends it only after they approve it. Returns the existing one if a "
+                  "reminder is already waiting.",
+                  _obj({"invoice_id": {"type": "string"}}, ["invoice_id"])),
+         DraftReminderArgs, draft_reminder),
     Tool(ToolSpec("list_invoices", "List the user's invoices, optionally by status.",
                   _obj({"status": {"type": "string", "enum": list(_INVOICE_STATUSES)}}, [])),
          ListInvoicesArgs, list_invoices),

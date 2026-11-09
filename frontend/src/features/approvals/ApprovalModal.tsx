@@ -316,7 +316,8 @@ function ResultView({ action, payee, outcome, onClose }: { action: PendingAction
       title = payout ? "Paid out" : "Reminder sent";
       body = payout ? `PayPal completed the payout of ${money} to ${who}.` : "PayPal sent your reminder with the original invoice.";
       break;
-    case "failed":
+    case "failed": {
+      const invoiceMissing = action.error?.startsWith("INVOICE_NOT_FOUND_IN_PAYPAL:");
       tone = "danger";
       icon = <XCircle aria-hidden className="size-6" />;
       title = payout ? "PayPal didn't send this payout" : "The reminder wasn't sent";
@@ -324,11 +325,15 @@ function ResultView({ action, payee, outcome, onClose }: { action: PendingAction
         <>
           <span className="block">{plainPayPalError(action.error)}</span>
           <span className="mt-2 block text-[13px] text-muted">
-            {payout ? "No money was sent. " : ""}Failed actions can't be retried from PaySasa yet. Ask PaySasa to schedule a new one once the issue is fixed.
+            {payout ? "No money was sent. " : ""}
+            {invoiceMissing
+              ? "This invoice can't be found in PayPal, so sending a reminder won't work. Check that the invoice was created in the same PayPal mode before creating a new reminder."
+              : "Failed actions can't be retried from PaySasa yet. Ask PaySasa to schedule a new one once the issue is fixed."}
           </span>
         </>
       );
       break;
+    }
     case "locked":
       tone = "muted";
       icon = <Clock aria-hidden className="size-6" />;

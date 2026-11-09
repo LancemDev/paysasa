@@ -1,5 +1,6 @@
 import type {
   CreateContactResult,
+  DraftReminderResult,
   FindContactResult,
   ListInvoicesResult,
   ListPendingActionsResult,
@@ -20,6 +21,7 @@ export interface AgentStep {
 export type ActionCardModel =
   | { kind: "invoice"; key: string; invoiceId: string; result: SendInvoiceResult }
   | { kind: "payout"; key: string; actionId: string; result: SchedulePayoutResult }
+  | { kind: "reminder"; key: string; actionId: string; result: DraftReminderResult }
   | { kind: "contact"; key: string; result: CreateContactResult };
 
 export function isToolError(result: unknown): result is { error: string } {
@@ -35,6 +37,7 @@ const FAILED_VERB: Record<string, string> = {
   create_contact: "add the contact",
   send_invoice: "send the invoice",
   schedule_payout: "schedule the payout",
+  draft_reminder: "draft the reminder",
   list_invoices: "list invoices",
   list_pending_actions: "list pending actions",
 };
@@ -70,6 +73,15 @@ export function stepFromToolCall(call: Pick<ToolCallLog, "name" | "args" | "resu
         detail: "Needs your approval",
       };
     }
+    case "draft_reminder": {
+      const r = result as DraftReminderResult;
+      return {
+        id,
+        status: "done",
+        label: r.already_queued ? `A reminder to ${r.contact} is already waiting` : `Drafted a reminder to ${r.contact}`,
+        detail: "Needs your approval",
+      };
+    }
     case "list_invoices": {
       const r = result as ListInvoicesResult;
       return { id, status: "done", label: `Checked invoices (${r.count} found)` };
@@ -98,6 +110,9 @@ export function actionCardsFromToolCalls(calls: ToolCallLog[]): ActionCardModel[
     } else if (call.name === "schedule_payout") {
       const r = call.result as SchedulePayoutResult;
       cards.push({ kind: "payout", key: `${i}-pay`, actionId: r.action_id, result: r });
+    } else if (call.name === "draft_reminder") {
+      const r = call.result as DraftReminderResult;
+      cards.push({ kind: "reminder", key: `${i}-rem`, actionId: r.action_id, result: r });
     } else if (call.name === "create_contact") {
       cards.push({ kind: "contact", key: `${i}-con`, result: call.result as CreateContactResult });
     }
@@ -105,7 +120,7 @@ export function actionCardsFromToolCalls(calls: ToolCallLog[]): ActionCardModel[
   return cards;
 }
 
-const WRITE_TOOLS = new Set(["send_invoice", "schedule_payout", "create_contact"]);
+const WRITE_TOOLS = new Set(["send_invoice", "schedule_payout", "draft_reminder", "create_contact"]);
 
 export interface Clarification {
   question: string;

@@ -2,6 +2,8 @@
 -- 1. Sign the demo user up first (Supabase Auth dashboard or the app), using the email below.
 -- 2. Replace Sarah's email with her PayPal sandbox personal-account email.
 -- 3. Run this file. It is safe to re-run.
+-- 4. To make the sent invoices real (so reminders and payments work), run from backend/server:
+--    .venv/bin/python -m scripts.link_seed_to_paypal   (needs PAYPAL_ADAPTER=real credentials)
 do $$
 declare
   demo_email  text := 'demo@paysasa.app';                 -- the demo user's login email
@@ -84,10 +86,11 @@ begin
     (act_marcus, uid, 'payout', 'locked', inv_daniel_sent, c_marcus,
      20000, 'USD', 10.00, 'Payout Marcus Reed $200.00 upon settlement', null,
      'demo-payout-marcus-1102', '2026-11-01 10:05+00', '2026-11-01 10:05+00', null, null),
-    (act_reminder, uid, 'invoice_reminder', 'awaiting_approval', inv_amara_overdue, null,
+    (act_reminder, uid, 'invoice_reminder', 'failed', inv_amara_overdue, null,
      null, null, null, 'Remind Amara Okafor: $3,500.00 is 9 days overdue',
      'Hi Amara, a friendly nudge that invoice DEMO-INV-1001 for Brand Film — Phase 2 ($3,500.00) was due on 28 October. Could you let me know when payment is scheduled? Thanks, Kwame',
-     'demo-reminder-amara-1101', '2026-11-06 08:00+00', '2026-11-06 08:00+00', null, null)
+     'demo-reminder-amara-1101', '2026-11-06 08:00+00', '2026-11-06 08:05+00', '2026-11-06 08:05+00', null)
+    -- Note: seeded with a demo PayPal invoice ID not present in any PayPal environment; kept failed so the UI shows the handled state.
   on conflict (id) do nothing;
 
   -- Activity feed, in the same shape the app writes.
@@ -187,10 +190,10 @@ begin
     (act_priya_locked, uid, 'payout', 'locked', inv_zara_sent, c_priya,
      42000, 'USD', 15.00, 'Payout Priya Nair $420.00 upon settlement', null,
      'demo-payout-priya-1108', null, '2026-11-05 09:35+00', '2026-11-05 09:35+00', null, null),
-    (act_zara_remind, uid, 'invoice_reminder', 'awaiting_approval', inv_zara_overdue, null,
+    (act_zara_remind, uid, 'invoice_reminder', 'failed', inv_zara_overdue, null,
      null, null, null, 'Remind Zara Mensah: $4,200.00 is 8 days overdue',
      'Hi Zara, a quick reminder that invoice DEMO-INV-1007 for the App Launch Teaser ($4,200.00) was due on 1 November. Could you share when payment will go out? Thanks, Kwame',
-     'demo-reminder-zara-1107', null, '2026-11-09 08:00+00', '2026-11-09 08:00+00', null, null),
+     'demo-reminder-zara-1107', null, '2026-11-09 08:00+00', '2026-11-09 08:05+00', '2026-11-09 08:05+00', null),
     (act_elena_done, uid, 'payout', 'succeeded', '11111111-1111-4111-8111-111111111104', c_elena,
      20000, 'USD', 10.00, 'Payout Elena Rossi $200.00', null,
      'demo-payout-elena-1104', 'DEMOBATCH0007', '2026-10-02 08:35+00', '2026-10-29 09:12+00',

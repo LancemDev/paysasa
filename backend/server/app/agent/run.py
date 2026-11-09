@@ -53,7 +53,8 @@ async def run_agent(
 
     currency = (profile["default_currency"].strip() if profile else "USD")
     ctx = ToolContext(pool=pool, adapter=adapter, owner_id=owner_id, run_id=run_id, user_message=message,
-                      default_currency=currency, max_amount_minor=max_amount_minor, today=today)
+                      default_currency=currency, max_amount_minor=max_amount_minor, today=today,
+                      llm=llm)
     system = build_system_prompt(today=today, currency=currency, currencies=ALLOWED_CURRENCIES, contacts=contacts)
 
     calls_log: list[dict] = []
