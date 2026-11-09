@@ -127,3 +127,102 @@ begin
     );
   end loop;
 end $$;
+
+-- Second wave: more clients, a colorist, and payouts in every remaining state.
+do $$
+declare
+  uid uuid;
+  c_zara uuid; c_kofi uuid; c_elena uuid; c_priya uuid; c_marcus uuid; c_daniel uuid;
+  inv_zara_overdue uuid := '11111111-1111-4111-8111-111111111107';
+  inv_zara_sent    uuid := '11111111-1111-4111-8111-111111111108';
+  inv_kofi_paid    uuid := '11111111-1111-4111-8111-111111111109';
+  inv_kofi_draft   uuid := '11111111-1111-4111-8111-111111111110';
+  act_elena_await  uuid := '22222222-2222-4222-8222-222222222204';
+  act_priya_locked uuid := '22222222-2222-4222-8222-222222222205';
+  act_zara_remind  uuid := '22222222-2222-4222-8222-222222222206';
+  act_elena_done   uuid := '22222222-2222-4222-8222-222222222207';
+  act_marcus_cxl   uuid := '22222222-2222-4222-8222-222222222208';
+  r record;
+begin
+  select id into uid from auth.users where email = 'demo@paysasa.app';
+  if uid is null then raise exception 'Demo user not found'; end if;
+
+  insert into contacts (owner_id, name, email, role, aliases) values
+    (uid, 'Zara Mensah',  'zara.mensah@example.com',  'client',     '{"Zara from Kente Labs"}'),
+    (uid, 'Kofi Boateng', 'kofi.boateng@example.com', 'client',     '{"the restaurant guy"}'),
+    (uid, 'Elena Rossi',  'elena.rossi@example.com',  'contractor', '{"my colorist"}')
+  on conflict (owner_id, email) do nothing;
+
+  select id into c_zara   from contacts where owner_id = uid and email = 'zara.mensah@example.com';
+  select id into c_kofi   from contacts where owner_id = uid and email = 'kofi.boateng@example.com';
+  select id into c_elena  from contacts where owner_id = uid and email = 'elena.rossi@example.com';
+  select id into c_priya  from contacts where owner_id = uid and email = 'priya.nair@example.com';
+  select id into c_marcus from contacts where owner_id = uid and email = 'marcus.reed@example.com';
+  select id into c_daniel from contacts where owner_id = uid and email = 'daniel.carter@example.com';
+
+  insert into invoices (id, owner_id, contact_id, paypal_invoice_id, description, amount_minor,
+                        currency, status, paypal_status, due_date, sent_at, paid_at, created_at, updated_at)
+  values
+    (inv_zara_overdue, uid, c_zara, 'DEMO-INV-1007', 'App Launch Teaser', 420000,
+     'USD', 'sent', 'SENT', '2026-11-01', '2026-10-18 12:00+00', null,
+     '2026-10-18 12:00+00', '2026-10-18 12:00+00'),
+    (inv_zara_sent, uid, c_zara, 'DEMO-INV-1008', 'Investor Day Highlights', 280000,
+     'USD', 'sent', 'SENT', '2026-11-30', '2026-11-05 09:30+00', null,
+     '2026-11-05 09:30+00', '2026-11-05 09:30+00'),
+    (inv_kofi_paid, uid, c_kofi, 'DEMO-INV-1009', 'Menu Photoshoot', 150000,
+     'USD', 'paid', 'PAID', '2026-11-10', '2026-10-27 15:00+00', '2026-11-07 18:20+00',
+     '2026-10-27 15:00+00', '2026-11-07 18:20+00'),
+    (inv_kofi_draft, uid, c_kofi, null, 'Holiday Promo Reel', 95000,
+     'USD', 'draft', null, '2026-12-05', null, null,
+     '2026-11-08 11:00+00', '2026-11-08 11:00+00')
+  on conflict (id) do nothing;
+
+  insert into pending_actions (id, owner_id, type, status, trigger_invoice_id, payee_contact_id,
+                               amount_minor, currency, split_percent, summary, draft_message,
+                               idempotency_key, paypal_payout_batch_id, created_at, updated_at, decided_at, executed_at)
+  values
+    (act_elena_await, uid, 'payout', 'awaiting_approval', inv_kofi_paid, c_elena,
+     18000, 'USD', 12.00, 'Payout Elena Rossi $180.00', null,
+     'demo-payout-elena-1109', null, '2026-10-27 15:05+00', '2026-11-07 18:20+00', null, null),
+    (act_priya_locked, uid, 'payout', 'locked', inv_zara_sent, c_priya,
+     42000, 'USD', 15.00, 'Payout Priya Nair $420.00 upon settlement', null,
+     'demo-payout-priya-1108', null, '2026-11-05 09:35+00', '2026-11-05 09:35+00', null, null),
+    (act_zara_remind, uid, 'invoice_reminder', 'awaiting_approval', inv_zara_overdue, null,
+     null, null, null, 'Remind Zara Mensah: $4,200.00 is 8 days overdue',
+     'Hi Zara, a quick reminder that invoice DEMO-INV-1007 for the App Launch Teaser ($4,200.00) was due on 1 November. Could you share when payment will go out? Thanks, Kwame',
+     'demo-reminder-zara-1107', null, '2026-11-09 08:00+00', '2026-11-09 08:00+00', null, null),
+    (act_elena_done, uid, 'payout', 'succeeded', '11111111-1111-4111-8111-111111111104', c_elena,
+     20000, 'USD', 10.00, 'Payout Elena Rossi $200.00', null,
+     'demo-payout-elena-1104', 'DEMOBATCH0007', '2026-10-02 08:35+00', '2026-10-29 09:12+00',
+     '2026-10-29 09:00+00', '2026-10-29 09:01+00'),
+    (act_marcus_cxl, uid, 'payout', 'cancelled', '11111111-1111-4111-8111-111111111105', c_marcus,
+     9000, 'USD', 10.00, 'Payout Marcus Reed $90.00 upon settlement', null,
+     'demo-payout-marcus-1105', null, '2026-09-20 10:05+00', '2026-10-16 11:00+00', null, null)
+  on conflict (id) do nothing;
+
+  for r in
+    select * from (values
+      ('agent',  'payout.scheduled',  'Payout Marcus Reed $90.00 upon settlement', 'pending_action', act_marcus_cxl, '2026-09-20 10:05+00'::timestamptz),
+      ('user',   'payout.cancelled',  'Payout Marcus Reed $90.00: cancelled because the invoice was cancelled', 'pending_action', act_marcus_cxl, '2026-10-16 11:00+00'::timestamptz),
+      ('agent',  'payout.scheduled',  'Payout Elena Rossi $200.00 upon settlement', 'pending_action', act_elena_done, '2026-10-02 08:35+00'::timestamptz),
+      ('agent',  'invoice.sent',      'Sent Zara Mensah a $4,200.00 invoice for App Launch Teaser', 'invoice', inv_zara_overdue, '2026-10-18 12:00+00'::timestamptz),
+      ('agent',  'invoice.sent',      'Sent Kofi Boateng a $1,500.00 invoice for Menu Photoshoot', 'invoice', inv_kofi_paid, '2026-10-27 15:00+00'::timestamptz),
+      ('agent',  'payout.scheduled',  'Payout Elena Rossi $180.00 upon settlement', 'pending_action', act_elena_await, '2026-10-27 15:05+00'::timestamptz),
+      ('paypal', 'payout.unlocked',   'Payout Elena Rossi $200.00 unlocked: needs your approval', 'pending_action', act_elena_done, '2026-10-28 16:10+00'::timestamptz),
+      ('user',   'payout.approved',   'Kwame approved: Payout Elena Rossi $200.00', 'pending_action', act_elena_done, '2026-10-29 09:00+00'::timestamptz),
+      ('paypal', 'payout.succeeded',  'Payout Elena Rossi $200.00: PayPal completed the payout', 'pending_action', act_elena_done, '2026-10-29 09:12+00'::timestamptz),
+      ('agent',  'invoice.sent',      'Sent Zara Mensah a $2,800.00 invoice for Investor Day Highlights', 'invoice', inv_zara_sent, '2026-11-05 09:30+00'::timestamptz),
+      ('agent',  'payout.scheduled',  'Payout Priya Nair $420.00 upon settlement', 'pending_action', act_priya_locked, '2026-11-05 09:35+00'::timestamptz),
+      ('paypal', 'invoice.paid',      'Kofi Boateng paid $1,500.00 for Menu Photoshoot', 'invoice', inv_kofi_paid, '2026-11-07 18:20+00'::timestamptz),
+      ('paypal', 'payout.unlocked',   'Payout Elena Rossi $180.00 unlocked: needs your approval', 'pending_action', act_elena_await, '2026-11-07 18:20+00'::timestamptz),
+      ('agent',  'reminder.drafted',  'Drafted a reminder to Zara Mensah: $4,200.00 is 8 days overdue', 'pending_action', act_zara_remind, '2026-11-09 08:00+00'::timestamptz)
+    ) as v(actor, event, message, entity_type, entity_id, created_at)
+  loop
+    insert into activity_log (owner_id, actor, event, message, entity_type, entity_id, created_at)
+    select uid, r.actor::actor_kind, r.event, r.message, r.entity_type, r.entity_id, r.created_at
+    where not exists (
+      select 1 from activity_log
+      where owner_id = uid and event = r.event and entity_id = r.entity_id and created_at = r.created_at
+    );
+  end loop;
+end $$;
