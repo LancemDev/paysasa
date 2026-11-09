@@ -41,4 +41,39 @@ describe("ActionCards", () => {
     expect(screen.getByText("$1,200.00 USD")).toBeInTheDocument();
     expect(screen.getByText("Sarah")).toBeInTheDocument();
   });
+
+  it("shows a drafted reminder with a Review and send button while it awaits approval", () => {
+    const reminder: ActionCardModel[] = [
+      {
+        kind: "reminder",
+        key: "0",
+        actionId: "rem-1",
+        result: {
+          action_id: "rem-1",
+          status: "awaiting_approval",
+          summary: "Remind Zara Mensah: $4,200.00 is 8 days overdue",
+          draft_message: "Hi Zara, a quick reminder about the App Launch Teaser.",
+          contact: "Zara Mensah",
+          description: "App Launch Teaser",
+          amount: "$4,200.00",
+          needs_approval: true,
+          already_queued: false,
+        },
+      },
+    ];
+    const live = makePayout({ id: "rem-1", type: "invoice_reminder", status: "awaiting_approval", payee_contact_id: null, amount_minor: null, currency: null, split_percent: null, draft_message: "Hi Zara, a quick reminder about the App Launch Teaser." });
+    renderWithData(<ActionCards cards={reminder} />, { invoices: [makeInvoice()], actions: [live] });
+    expect(screen.getByRole("heading", { name: "Reminder ready for your approval" })).toBeInTheDocument();
+    expect(screen.getByText("Zara Mensah")).toBeInTheDocument();
+    expect(screen.getByText("Hi Zara, a quick reminder about the App Launch Teaser.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review and send" })).toBeInTheDocument();
+  });
+
+  it("hides the send button once the reminder has been handled", () => {
+    const reminder: ActionCardModel[] = [
+      { kind: "reminder", key: "0", actionId: "rem-1", result: { action_id: "rem-1", status: "awaiting_approval", summary: "s", draft_message: "Hi Zara", contact: "Zara Mensah", description: "App Launch Teaser", amount: "$4,200.00", needs_approval: true, already_queued: false } },
+    ];
+    renderWithData(<ActionCards cards={reminder} />, { invoices: [makeInvoice()], actions: [makePayout({ id: "rem-1", type: "invoice_reminder", status: "submitted" })] });
+    expect(screen.queryByRole("button", { name: "Review and send" })).not.toBeInTheDocument();
+  });
 });

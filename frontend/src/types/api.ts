@@ -187,6 +187,21 @@ export interface SchedulePayoutResult {
   needs_approval: true;
 }
 
+export interface DraftReminderResult {
+  action_id: Uuid;
+  status: "awaiting_approval";
+  summary: string;
+  draft_message: string;
+  /** Client name */
+  contact: string;
+  description: string;
+  /** Pre-formatted, e.g. "$4,200.00" */
+  amount: string;
+  needs_approval: true;
+  /** True when a reminder for this invoice was already waiting, so nothing new was queued. */
+  already_queued: boolean;
+}
+
 export interface ListInvoicesResult {
   invoices: {
     invoice_id: Uuid;
@@ -217,6 +232,7 @@ export type AgentToolResult =
   | CreateContactResult
   | SendInvoiceResult
   | SchedulePayoutResult
+  | DraftReminderResult
   | ListInvoicesResult
   | ListPendingActionsResult
   | Record<string, unknown>;

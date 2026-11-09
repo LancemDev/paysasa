@@ -42,6 +42,19 @@ describe("action cards", () => {
     expect(cards.map((c) => c.kind)).toEqual(["invoice", "payout"]);
   });
 
+  it("creates a reminder card and step for draft_reminder", () => {
+    const calls: ToolCallLog[] = [
+      {
+        name: "draft_reminder",
+        args: { invoice_id: "inv-9" },
+        result: { action_id: "rem-1", status: "awaiting_approval", summary: "Remind Zara Mensah: $4,200.00 is 8 days overdue", draft_message: "Hi Zara", contact: "Zara Mensah", description: "App Launch Teaser", amount: "$4,200.00", needs_approval: true, already_queued: false },
+      },
+    ];
+    expect(actionCardsFromToolCalls(calls).map((c) => c.kind)).toEqual(["reminder"]);
+    expect(stepsFromToolCalls(calls)[0]).toMatchObject({ label: "Drafted a reminder to Zara Mensah", detail: "Needs your approval" });
+    expect(detectClarification("Want me to do anything else?", calls)).toBeNull();
+  });
+
   it("skips failed tool calls", () => {
     expect(actionCardsFromToolCalls([{ name: "send_invoice", args: {}, result: { error: "nope" } }])).toEqual([]);
   });
