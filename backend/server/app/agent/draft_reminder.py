@@ -11,7 +11,8 @@ log = logging.getLogger(__name__)
 MAX_CHARS = 500
 _LINK_RE = re.compile(r"(https?://|www\.|\b[\w-]+\.(com|net|org|io|co|app|me|ke|uk)\b)", re.I)
 _MONEY_RE = re.compile(
-    r"(?:[$£€]\s?(\d[\d,]*(?:\.\d+)?))|(?:(\d[\d,]*(?:\.\d+)?)\s?(?:USD|GBP|EUR|dollars?|pounds?|euros?)\b)", re.I
+    r"(?:(?:KSh|CA\$|A\$|CHF|[$£€])\s?(\d[\d,]*(?:\.\d+)?))|(?:(\d[\d,]*(?:\.\d+)?)\s?(?:KES|USD|GBP|EUR|CAD|AUD|CHF|shillings?|dollars?|pounds?|euros?|francs?)\b)",
+    re.I,
 )
 
 SYSTEM = (

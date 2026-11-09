@@ -1,11 +1,13 @@
 import type { AgPageState, AgReportState, AgWidgetLayoutState } from "ag-studio";
+import { STUDIO_CURRENCIES } from "./studioData";
 
-// The built-in "PaySasa overview" report. Field ids ("invoices.collectedUSD") refer to ./studioData.ts.
+// The built-in "PaySasa overview" report. Field ids (e.g. "invoices.collectedKES") refer to ./studioData.ts.
 // Canvas is 24 tracks wide. One y-axis per chart; money is per currency.
 const at = (xTrack: number, yTrack: number, xSpan: number, ySpan: number): AgWidgetLayoutState => ({ xTrack, yTrack, xSpan, ySpan });
 const title = (text: string) => ({ title: { enabled: true, text } });
 const sum = (id: string) => ({ id, aggregation: "sum" as const });
 const legend = { style: { theme: { common: { legend: { enabled: true } } } } };
+const moneySums = (prefix: string) => STUDIO_CURRENCIES.map((c) => sum(`${prefix}${c}`));
 
 /** PaySasa custom widgets (see ./widgets/registry.ts); typed loosely because AgPageState only knows built-ins. */
 const custom = (type: string, text: string) => ({ type, format: title(text) }) as unknown as NonNullable<AgPageState["widgets"]>[string];
@@ -25,34 +27,34 @@ export const PAGE_TITLES: Record<string, string> = {
 const cashflow: AgPageState = {
   id: "cashflow",
   widgets: {
-    "kpi-invoiced": kpi("Invoiced (USD)", sum("invoices.invoicedUSD")),
-    "kpi-collected": kpi("Collected (USD)", sum("invoices.collectedUSD")),
-    "kpi-outstanding": kpi("Awaiting (USD)", sum("invoices.outstandingUSD"), false),
-    "kpi-overdue": kpi("Overdue (USD)", sum("invoices.overdueUSD"), false),
+    "kpi-invoiced": kpi("Invoiced (KES)", sum("invoices.invoicedKES")),
+    "kpi-collected": kpi("Collected (KES)", sum("invoices.collectedKES")),
+    "kpi-outstanding": kpi("Awaiting (KES)", sum("invoices.outstandingKES"), false),
+    "kpi-overdue": kpi("Overdue (KES)", sum("invoices.overdueKES"), false),
     "invoiced-vs-collected": {
       type: "column-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "calendar::month" }], valueKey: [sum("invoices.invoicedUSD"), sum("invoices.collectedUSD")] },
-      format: { ...title("Invoiced vs collected by month (USD)"), ...legend },
+      dataMapping: { categoryKey: [{ id: "calendar::month" }], valueKey: [sum("invoices.invoicedKES"), sum("invoices.collectedKES")] },
+      format: { ...title("Invoiced vs collected by month (KES)"), ...legend },
     },
     aging: {
       type: "bar-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "receivables.agingBucket" }], valueKey: [sum("receivables.outstandingUSD")] },
+      dataMapping: { categoryKey: [{ id: "receivables.agingBucket" }], valueKey: [sum("receivables.outstandingKES")] },
       // Bucket labels are named so they sort in lateness order.
       sort: [{ field: { id: "receivables.agingBucket" }, direction: "asc" }],
-      format: title("Receivables aging (USD)"),
+      format: title("Receivables aging (KES)"),
     },
     "top-clients": {
       type: "bar-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "clients.name" }], valueKey: [sum("invoices.invoicedUSD")] },
-      sort: [{ field: sum("invoices.invoicedUSD"), direction: "desc" }],
-      format: title("Top clients by invoiced (USD)"),
+      dataMapping: { categoryKey: [{ id: "clients.name" }], valueKey: [sum("invoices.invoicedKES")] },
+      sort: [{ field: sum("invoices.invoicedKES"), direction: "desc" }],
+      format: title("Top clients by invoiced (KES)"),
     },
     "by-currency": {
       type: "pivot-grid",
       dataMapping: {
         rows: [{ id: "invoices.statusGroup" }],
         columns: [],
-        values: [sum("invoices.invoicedUSD"), sum("invoices.invoicedGBP"), sum("invoices.invoicedEUR")],
+        values: moneySums("invoices.invoiced"),
       },
       format: title("Invoiced by status, each currency separately"),
     },
@@ -75,20 +77,20 @@ const guardrails: AgPageState = {
   id: "guardrails",
   widgets: {
     "kpi-awaiting": kpi("Payouts awaiting approval", sum("payouts.needsApproval"), false),
-    "kpi-scheduled": kpi("Scheduled payouts (USD)", sum("payouts.amountUSD")),
-    "kpi-paid-out": kpi("Paid out (USD)", sum("payouts.paidOutUSD")),
+    "kpi-scheduled": kpi("Scheduled payouts (KES)", sum("payouts.amountKES")),
+    "kpi-paid-out": kpi("Paid out (KES)", sum("payouts.paidOutKES")),
     pipeline: custom("paysasa-pipeline", "Money guardrail: where every payout is"),
     "by-payee": {
       type: "bar-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "payouts.payee" }], valueKey: [sum("payouts.amountUSD")] },
-      format: title("Payouts by collaborator (USD)"),
+      dataMapping: { categoryKey: [{ id: "payouts.payee" }], valueKey: [sum("payouts.amountKES")] },
+      format: title("Payouts by collaborator (KES)"),
     },
     "stage-grid": {
       type: "pivot-grid",
       dataMapping: {
         rows: [{ id: "payouts.stage" }],
         columns: [],
-        values: [sum("payouts.payoutCount"), sum("payouts.amountUSD"), sum("payouts.amountGBP"), sum("payouts.amountEUR")],
+        values: [sum("payouts.payoutCount"), ...moneySums("payouts.amount")],
       },
       format: title("Payouts by stage, each currency separately"),
     },

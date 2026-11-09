@@ -6,10 +6,9 @@ import { ACTION_STAGES, actionStage, actionStatusDisplay, invoiceDisplayStatus, 
 
 /**
  * AG Studio data model for PaySasa. Money never mixes currencies: every amount is split into one field per
- * currency (amountUSD, amountGBP, amountEUR), each formatted in its own currency. The backend only creates
- * USD, GBP and EUR.
+ * currency (e.g. amountKES, amountUSD), each formatted in its own currency.
  */
-export const STUDIO_CURRENCIES = ["USD", "GBP", "EUR"] as const;
+export const STUDIO_CURRENCIES = ["KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF"] as const;
 type Cur = (typeof STUDIO_CURRENCIES)[number];
 
 export interface StudioInput {
@@ -113,9 +112,7 @@ export function buildRows({ invoices, actions, contacts, activity, now = new Dat
       agingOrder: AGING_ORDER.indexOf(r.agingBucket ?? AGING_ORDER[0]),
       daysOverdue: r.daysOverdue,
       currency: r.currency,
-      outstandingUSD: r.outstandingUSD,
-      outstandingGBP: r.outstandingGBP,
-      outstandingEUR: r.outstandingEUR,
+      ...Object.fromEntries(STUDIO_CURRENCIES.map((c) => [`outstanding${c}`, r[`outstanding${c}` as keyof typeof r] ?? null])),
     }));
 
   return { clients, invoices: invoiceRows, receivables, payouts: payoutRows, activity: activityRows };

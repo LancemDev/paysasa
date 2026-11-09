@@ -51,7 +51,7 @@ async def run_agent(
         )
         history = [(r["user_message"], r["reply"]) for r in reversed(await cur.fetchall())]
 
-    currency = (profile["default_currency"].strip() if profile else "USD")
+    currency = (profile["default_currency"].strip() if profile else "KES")
     ctx = ToolContext(pool=pool, adapter=adapter, owner_id=owner_id, run_id=run_id, user_message=message,
                       default_currency=currency, max_amount_minor=max_amount_minor, today=today,
                       llm=llm)

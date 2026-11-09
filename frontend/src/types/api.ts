@@ -7,9 +7,10 @@
 export type Uuid = string;
 export type IsoDateTime = string;
 export type IsoDate = string;
-/** ISO 4217 code. The backend only creates USD | GBP | EUR, but rows are typed loosely so formatting never breaks. */
+/** ISO 4217 code. The backend creates these currencies; rows stay loosely typed so formatting never breaks. */
 export type CurrencyCode = string;
-export const BACKEND_CURRENCIES = ["USD", "GBP", "EUR"] as const;
+export const DEFAULT_CURRENCY = "KES" as const;
+export const BACKEND_CURRENCIES = ["KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF"] as const;
 export type BackendCurrency = (typeof BACKEND_CURRENCIES)[number];
 
 // --- Enums (Postgres) --------------------------------------------------------
@@ -300,6 +301,14 @@ export interface CreateContactResponse {
 export interface SimulatePaidResponse {
   invoice: Invoice;
 }
+/** GET /api/profile, PATCH /api/profile */
+export interface ProfileResponse {
+  profile: Profile;
+}
+export interface UpdateProfileRequest {
+  default_currency: CurrencyCode;
+}
+
 /** POST /dev/run-chase (ENABLE_DEV_ROUTES only) */
 export interface RunChaseResponse {
   created: number;

@@ -94,17 +94,17 @@ async def test_create_contact_with_email_in_message(client, pool, user, llm):
     assert llm.received[1][0].result["contact"]["email"] == "mary@example.com"
 
 
-async def test_kes_is_refused(client, pool, user, llm):
+async def test_unsupported_currency_is_refused(client, pool, user, llm):
     llm.steps = [
-        turn_calls(call("send_invoice", contact_id=str(user["john"]), description="Work", amount="5000", currency="KES")),
-        lambda results: reply("KES isn't supported. I can invoice in USD, GBP or EUR."),
+        turn_calls(call("send_invoice", contact_id=str(user["john"]), description="Work", amount="5000", currency="XYZ")),
+        lambda results: reply("That currency isn't supported. I can invoice in KES, USD, EUR, GBP, CAD, AUD, or CHF."),
     ]
-    r = await client.post("/api/agent/message", json={"message": "Invoice John 5000 KES"}, headers=auth(user))
+    r = await client.post("/api/agent/message", json={"message": "Invoice John 5000 XYZ"}, headers=auth(user))
     err = llm.received[1][0].result["error"]
-    assert "USD, GBP, EUR" in err
-    assert "USD" in r.json()["reply"]
+    assert "KES" in err
+    assert "KES" in r.json()["reply"] or "currency" in r.json()["reply"].lower()
     assert await fetchall(pool, "select * from invoices") == []
-    assert "Supported currencies are USD, GBP, EUR" in llm.systems[0]
+    assert "Supported currencies are KES, USD, EUR, GBP, CAD, AUD, CHF" in llm.systems[0]
 
 
 async def run_tool(client, user, llm, name, /, **args):

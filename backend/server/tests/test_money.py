@@ -29,11 +29,13 @@ def test_format():
     assert format_money(120000, "USD") == "$1,200.00"
     assert format_money(8000, "GBP") == "£80.00"
     assert format_money(4550, "EUR") == "€45.50"
+    assert format_money(150000, "KES") == "KSh 1,500.00"
     assert format_minor(120000) == "1200.00"
 
 
 def test_currency():
     assert check_currency("usd") == "USD"
-    for bad in ("KES", "ZAR", ""):
+    assert check_currency("kes") == "KES"
+    for bad in ("ZAR", "NGN", "XYZ", ""):
         with pytest.raises(MoneyError):
             check_currency(bad)
