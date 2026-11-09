@@ -101,6 +101,9 @@ async def _execute_payout(pool: AsyncConnectionPool, adapter: PayPalAdapter, act
     return row or action
 
 
+_MISSING_IN_PAYPAL = {"RESOURCE_NOT_FOUND", "INVALID_RESOURCE_ID"}
+
+
 async def _send_reminder(pool: AsyncConnectionPool, adapter: PayPalAdapter, action: dict) -> dict:
     async with pool.connection() as conn:
         cur = await conn.execute("select paypal_invoice_id from invoices where id = %s",
@@ -111,12 +114,29 @@ async def _send_reminder(pool: AsyncConnectionPool, adapter: PayPalAdapter, acti
             raise PayPalError("NO_PAYPAL_INVOICE", "The invoice was never sent through PayPal")
         await adapter.send_invoice_reminder(invoice["paypal_invoice_id"], action["draft_message"])
     except PayPalError as e:
+        code, message = e.code, e.message
+        if code in _MISSING_IN_PAYPAL:
+            try:
+                await adapter.get_invoice(invoice["paypal_invoice_id"])
+            except PayPalError as lookup:
+                if lookup.code in _MISSING_IN_PAYPAL:
+                    code = "INVOICE_NOT_FOUND_IN_PAYPAL"
+                    message = "PayPal couldn't find this invoice, so the reminder can't be sent."
+            except Exception:
+                log.exception("get_invoice lookup failed after reminder RESOURCE_NOT_FOUND")
         async with pool.connection() as conn:
-            row = await transition(
-                conn, "pending_actions", action["id"], "executing", "failed", actor="paypal",
-                event="reminder.failed", message=f"{action['summary']}: reminder failed ({e.message})",
-                set_fields={"error": f"{e.code}: {e.message}"},
-            )
+            async with conn.transaction():
+                row = await transition(
+                    conn, "pending_actions", action["id"], "executing", "failed", actor="paypal",
+                    event="reminder.failed", message=f"{action['summary']}: reminder failed ({message})",
+                    set_fields={"error": f"{code}: {message}"},
+                )
+                if code == "INVOICE_NOT_FOUND_IN_PAYPAL" and action.get("trigger_invoice_id"):
+                    await conn.execute(
+                        "update invoices set error = %s, paypal_status = coalesce(paypal_status, 'NOT_FOUND') "
+                        "where id = %s and error is null",
+                        (f"{code}: {message}", action["trigger_invoice_id"]),
+                    )
         return row or action
     async with pool.connection() as conn:
         async with conn.transaction():

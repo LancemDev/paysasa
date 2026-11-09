@@ -29,6 +29,7 @@ async def run_chase(pool: AsyncConnectionPool, llm: LLM | None, today: date | No
                 join contacts c on c.id = i.contact_id
                 left join profiles p on p.id = i.owner_id
                 where i.status = 'sent' and i.due_date < %s
+                  and coalesce(i.error, '') not like 'INVOICE_NOT_FOUND_IN_PAYPAL:%%'
                   and (i.last_reminder_at is null or i.last_reminder_at < now() - interval '{REMINDER_GAP}')
                   and not exists (select 1 from pending_actions a
                                   where a.trigger_invoice_id = i.id and a.type = 'invoice_reminder'

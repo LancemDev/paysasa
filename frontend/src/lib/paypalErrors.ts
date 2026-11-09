@@ -6,6 +6,8 @@ const KNOWN: Record<string, string> = {
   DUPLICATE_REQUEST_ID: "PayPal has already received this exact payout request, so it wasn't sent twice.",
   CURRENCY_NOT_SUPPORTED_FOR_RECEIVER: "The recipient's PayPal account can't receive this currency.",
   NO_PAYPAL_INVOICE: "This invoice was never sent through PayPal, so there's nothing to remind.",
+  INVOICE_NOT_FOUND_IN_PAYPAL: "PayPal couldn't find this invoice. It may have been created in a different PayPal mode or removed from PayPal.",
+  INVALID_RESOURCE_ID: "PayPal couldn't find the related record.",
   RESOURCE_NOT_FOUND: "PayPal couldn't find the related record.",
 };
 
