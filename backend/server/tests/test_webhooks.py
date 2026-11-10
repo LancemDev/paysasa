@@ -180,3 +180,35 @@ async def test_dev_simulate_paid(client, pool, user, adapter):
     assert r.status_code == 200 and r.json()["invoice"]["status"] == "paid"
     assert await status(pool, "pending_actions", s["payout_id"]) == "awaiting_approval"
     assert (await client.post(f"/dev/simulate-paid/{s['invoice_id']}")).status_code == 409
+
+
+def paypal_invoice_event(event_type, paypal_invoice_id, status):
+    """The real shape of PayPal's v2 invoicing webhooks: the invoice is nested under resource.invoice."""
+    return event(event_type, {"invoice": {
+        "id": paypal_invoice_id, "status": status,
+        "detail": {"currency_code": "USD", "reference": "ref"},
+        "payments": {"paid_amount": {"currency_code": "USD", "value": "1200.00"}},
+    }})
+
+
+async def test_real_paypal_payload_shape_paid_and_refunded(client, pool, user, adapter):
+    s = await sent_invoice_with_payout(pool, adapter, user)
+    adapter.set_invoice_status(s["paypal_invoice_id"], "PAID")
+    r = await deliver(client, paypal_invoice_event("INVOICING.INVOICE.PAID", s["paypal_invoice_id"], "PAID"))
+    assert r.status_code == 200
+    assert await status(pool, "invoices", s["invoice_id"]) == "paid"
+    assert await status(pool, "pending_actions", s["payout_id"]) == "awaiting_approval"
+    row = await fetchone(pool, "select resource_id, error from webhook_events")
+    assert row == {"resource_id": s["paypal_invoice_id"], "error": None}
+
+    r = await deliver(client, paypal_invoice_event("INVOICING.INVOICE.REFUNDED", s["paypal_invoice_id"], "REFUNDED"))
+    assert r.status_code == 200
+    assert await status(pool, "pending_actions", s["payout_id"]) == "cancelled"
+
+
+async def test_real_paypal_payload_shape_cancelled(client, pool, user, adapter):
+    s = await sent_invoice_with_payout(pool, adapter, user)
+    r = await deliver(client, paypal_invoice_event("INVOICING.INVOICE.CANCELLED", s["paypal_invoice_id"], "CANCELLED"))
+    assert r.status_code == 200
+    assert await status(pool, "invoices", s["invoice_id"]) == "cancelled"
+    assert await status(pool, "pending_actions", s["payout_id"]) == "cancelled"
