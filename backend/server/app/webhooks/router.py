@@ -10,7 +10,8 @@ from app.db import get_pool
 from app.deps import get_adapter
 from app.paypal_contract import PayPalAdapter
 from app.webhooks.handlers import (
-    RetryLater, handle_invoice_cancelled, handle_invoice_paid, handle_payout_batch,
+    PAYOUT_ITEM_FAILURES, RetryLater, handle_invoice_cancelled, handle_invoice_paid, handle_invoice_refunded,
+    handle_payout_batch, handle_payout_item,
 )
 
 log = logging.getLogger(__name__)
@@ -78,6 +79,11 @@ async def process_event(adapter: PayPalAdapter, event_id: str, event_type: str, 
                 error = await handle_payout_batch(conn, resource, success=True)
             elif event_type == "PAYMENT.PAYOUTSBATCH.DENIED":
                 error = await handle_payout_batch(conn, resource, success=False)
+            elif event_type == "INVOICING.INVOICE.REFUNDED":
+                error = await handle_invoice_refunded(conn, resource)
+            elif (event_type.startswith("PAYMENT.PAYOUTS-ITEM.")
+                  and event_type.rsplit(".", 1)[-1] in PAYOUT_ITEM_FAILURES):
+                error = await handle_payout_item(conn, resource)
             else:
                 error = None
 
