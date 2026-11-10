@@ -69,7 +69,7 @@ async def test_context_and_history(client, pool, user, llm):
     await client.post("/api/agent/message", json={"message": "again"}, headers=auth(user))
     assert llm.history == [("hello", "Hi")]
     assert "Sarah <sarah@example.com> (contractor; aliases: my editor)" in llm.systems[-1]
-    assert "default currency is USD" in llm.systems[-1]
+    assert "new invoices are settled in USD" in llm.systems[-1]
 
 
 async def test_unknown_recipient_without_email_creates_nothing(client, pool, user, llm):
@@ -104,32 +104,7 @@ async def test_unsupported_currency_is_refused(client, pool, user, llm):
     assert "USD" in err and "KES" not in err
     assert "currency" in r.json()["reply"].lower()
     assert await fetchall(pool, "select * from invoices") == []
-    assert "Supported currencies are USD, EUR, GBP, CAD, AUD, CHF" in llm.systems[0]
-    assert TOOLS["send_invoice"].spec.parameters["properties"]["currency"]["enum"] == \
-        ["USD", "EUR", "GBP", "CAD", "AUD", "CHF"]
-
-
-async def test_kes_invoice_is_refused_before_paypal(client, pool, user, llm, adapter):
-    """PayPal can't invoice in KES: refuse it with a clear message, with no invoice row and no PayPal call."""
-    async with pool.connection() as conn:
-        await conn.execute("update profiles set default_currency = 'KES' where id = %s", (user["id"],))
-    llm.steps = [
-        turn_calls(call("send_invoice", contact_id=str(user["john"]), description="Work", amount="5000")),
-        lambda results: reply("PayPal can't bill in KES. Which currency should I use?"),
-    ]
-    await client.post("/api/agent/message", json={"message": "Invoice John 5000 for work"}, headers=auth(user))
-    err = llm.received[1][0].result["error"]
-    assert "PayPal can't invoice or pay out in KES" in err and "USD" in err
-    assert await fetchall(pool, "select * from invoices") == []
-    assert adapter.calls == []
-    assert "default currency is KES" in llm.systems[0]
-
-
-async def test_profile_currency_must_be_paypal_billable(client, pool, user):
-    r = await client.patch("/api/profile", json={"default_currency": "KES"}, headers=auth(user))
-    assert r.status_code == 422 and "PayPal" in r.json()["error"]["message"]
-    r = await client.patch("/api/profile", json={"default_currency": "eur"}, headers=auth(user))
-    assert r.status_code == 200 and r.json()["profile"]["default_currency"] == "EUR"
+    assert "PayPal can create invoices in USD, EUR, GBP, CAD, AUD, CHF" in llm.systems[0]
 
 
 async def run_tool(client, user, llm, name, /, **args):

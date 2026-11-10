@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { ActivityLogEntry, AgentRun, Contact, Invoice, PendingAction, Profile, Uuid } from "@/types/api";
 import { useAuth } from "@/auth/AuthProvider";
+import { withDisplayMoney } from "./displayCurrency";
+import { normalizeCurrency } from "./money";
 import { qk } from "./queryKeys";
 import { usePollInterval } from "./realtime";
 import { supabase } from "./supabase";
@@ -43,14 +45,41 @@ export const fetchers = {
     read<AgentRun | null>("assistant run", () => supabase.from("agent_runs").select("*").eq("id", id).maybeSingle()),
 };
 
-function useLive<T>(key: readonly unknown[], fn: () => Promise<T>, enabled = true) {
+function useLive<T, U = T>(
+  key: readonly unknown[],
+  fn: () => Promise<T>,
+  select?: (data: T) => U,
+  enabled = true,
+) {
   const refetchInterval = usePollInterval();
   const { user } = useAuth();
-  return useQuery({ queryKey: key, queryFn: fn, enabled: enabled && !!user, refetchInterval });
+  return useQuery({
+    queryKey: key,
+    queryFn: fn,
+    enabled: enabled && !!user,
+    refetchInterval,
+    ...(select ? { select } : {}),
+  });
 }
 
-export const useInvoices = () => useLive(qk.invoices, fetchers.invoices);
-export const useActions = () => useLive(qk.actions, fetchers.actions);
+/** The profile's chosen display currency, or null while the profile loads. */
+export function useDisplayCurrency(): string | null {
+  const { data } = useProfile();
+  return data ? normalizeCurrency(data.default_currency) || null : null;
+}
+
+export const useInvoices = () => {
+  const display = useDisplayCurrency();
+  const select = useCallback((rows: Invoice[]) => rows.map((r) => withDisplayMoney(r, display)), [display]);
+  return useLive(qk.invoices, fetchers.invoices, select);
+};
+
+export const useActions = () => {
+  const display = useDisplayCurrency();
+  const select = useCallback((rows: PendingAction[]) => rows.map((r) => withDisplayMoney(r, display)), [display]);
+  return useLive(qk.actions, fetchers.actions, select);
+};
+
 export const useContacts = () => useLive(qk.contacts, fetchers.contacts);
 export const useActivity = () => useLive(qk.activity, fetchers.activity);
 

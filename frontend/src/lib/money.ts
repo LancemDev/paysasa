@@ -1,6 +1,7 @@
 /**
- * Money is integer minor units plus an ISO 4217 code (backend contract). We never do float maths on money:
- * the decimal string is built with integer arithmetic and handed to Intl.NumberFormat as a string.
+ * Stored money is integer minor units plus an ISO 4217 code (backend contract). Formatting is exact: the
+ * decimal string is built with integer arithmetic and handed to Intl.NumberFormat as a string. Display-only
+ * FX restatement (`convertMinor`) rounds once from indicative rates and never changes a stored amount.
  */
 export const DEFAULT_CURRENCY = "KES" as const;
 export const SELECTABLE_CURRENCIES = ["KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF"] as const;
@@ -112,4 +113,41 @@ export function formatTotals(totals: CurrencyTotals, locale?: string): string {
   const entries = Object.entries(totals).sort(([a], [b]) => a.localeCompare(b));
   if (entries.length === 0) return "";
   return entries.map(([code, v]) => formatMoney(v, code, locale)).join(" · ");
+}
+
+// --- display conversion -------------------------------------------------------
+
+/**
+ * Indicative FX rates, units of each currency per 1 USD, used only to restate amounts for display.
+ * They are deliberately static so demos and tests are deterministic; settlement still uses the
+ * original amount and currency stored on the row (and the PayPal invoice behind it).
+ */
+export const FX_PER_USD: Readonly<Record<string, number>> = {
+  USD: 1,
+  KES: 129.3,
+  EUR: 0.91,
+  GBP: 0.78,
+  CAD: 1.36,
+  AUD: 1.51,
+  CHF: 0.87,
+  ZAR: 18.0,
+  NGN: 1520,
+};
+
+/**
+ * Restate an amount in another currency using the indicative rates. Returns null when either
+ * currency has no rate, so callers can keep showing the original instead of inventing a number.
+ */
+export function convertMinor(amountMinor: number, from: string | null | undefined, to: string | null | undefined): number | null {
+  const source = normalizeCurrency(from);
+  const target = normalizeCurrency(to);
+  if (!source || !target) return null;
+  if (source === target) return amountMinor;
+  const sourceRate = FX_PER_USD[source];
+  const targetRate = FX_PER_USD[target];
+  if (!sourceRate || !targetRate) return null;
+  const sourceDigits = minorDigits(source);
+  const targetDigits = minorDigits(target);
+  const major = amountMinor / 10 ** sourceDigits;
+  return Math.round(major * (targetRate / sourceRate) * 10 ** targetDigits);
 }

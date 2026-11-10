@@ -483,7 +483,7 @@ TOOLS: dict[str, Tool] = {t.spec.name: t for t in [
                         "amount": {"type": "string", "description": "Decimal string, e.g. '1200.00'"},
                         "currency": {"type": "string", "enum": list(PAYPAL_CURRENCIES)},
                         "due_in_days": {"type": "integer", "description": "Days until due. Default 14."}},
-                       ["contact_id", "description", "amount", "currency"])),
+                       ["contact_id", "description", "amount"])),
          SendInvoiceArgs, send_invoice),
     Tool(ToolSpec("schedule_payout", "Queue a payout to a contractor that unlocks when the trigger invoice is paid "
                   "and then needs the user's approval on the dashboard. Give split_percent or amount, not both.",

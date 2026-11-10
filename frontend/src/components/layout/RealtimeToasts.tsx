@@ -1,16 +1,19 @@
 import { useToast } from "@/components/ui/Toast";
-import { formatMoney } from "@/lib/money";
-import { useContactsById } from "@/lib/queries";
+import { convertMinor, formatMoney } from "@/lib/money";
+import { useContactsById, useDisplayCurrency } from "@/lib/queries";
 import { useRealtimeEvents } from "@/lib/realtime";
 
 /** Announces the moments that matter (paid, unlocked, paid out, failed) as they arrive from realtime. */
 export function RealtimeToasts() {
   const toast = useToast();
   const contacts = useContactsById();
+  const display = useDisplayCurrency();
   useRealtimeEvents((e) => {
     if (e.table === "invoices" && e.row.status === "paid" && e.previous && e.previous.status !== "paid") {
       const who = contacts.get(e.row.contact_id)?.name ?? "Your client";
-      toast.success(`${who} paid ${formatMoney(e.row.amount_minor, e.row.currency)}`, e.row.description);
+      const paid = convertMinor(e.row.amount_minor, e.row.currency, display);
+      const amount = paid != null ? formatMoney(paid, display) : formatMoney(e.row.amount_minor, e.row.currency);
+      toast.success(`${who} paid ${amount}`, e.row.description);
     }
     if (e.table === "pending_actions" && e.previous && e.previous.status !== e.row.status) {
       const a = e.row;

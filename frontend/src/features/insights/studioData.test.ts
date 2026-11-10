@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { john, makeInvoice, makePayout, sarah } from "@/test/utils";
 import { sampleHistory } from "./sampleHistory";
 import { buildRows, buildStudioData } from "./studioData";
+import { buildDefaultReport } from "./studioReport";
 
 const now = new Date("2026-10-22T09:00:00Z");
 
@@ -56,5 +57,36 @@ describe("AG Studio data model", () => {
     const b = sampleHistory(now);
     expect(a.invoices).toEqual(b.invoices);
     expect(a.invoices.every((i) => i.id.startsWith("sample-") && i.paypal_invoice_id!.includes("SAMPLE"))).toBe(true);
+  });
+
+  it("fills the canonical report fields only with the display currency", () => {
+    const usdRows = buildRows({
+      invoices: [
+        makeInvoice({ id: "usd", due_date: "2026-10-01" }),
+        makeInvoice({ id: "gbp", currency: "GBP", amount_minor: 50000, status: "paid", paid_at: "2026-10-10T00:00:00Z" }),
+      ],
+      actions: [],
+      contacts: [john],
+      activity: [],
+      now,
+      displayCurrency: "USD",
+    });
+    const usd = usdRows.invoices.find((r) => r.id === "usd")!;
+    const gbp = usdRows.invoices.find((r) => r.id === "gbp")!;
+    expect(usd.outstanding).toBe(1200);
+    expect(usd.collected).toBeNull();
+    expect(gbp.collected).toBeNull();
+    expect(gbp.collectedGBP).toBe(500);
+
+    const def = buildStudioData(usdRows, now, "USD");
+    expect(def.description).toContain("USD");
+  });
+
+  it("builds the default report in the requested display currency", () => {
+    const report = buildDefaultReport("EUR");
+    const json = JSON.stringify(report);
+    expect(json).toContain("invoices.collected");
+    expect(json).toContain("Collected (EUR)");
+    expect(json).not.toContain("invoices.collectedKES");
   });
 });

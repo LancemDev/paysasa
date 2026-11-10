@@ -1,7 +1,8 @@
 import type { AgPageState, AgReportState, AgWidgetLayoutState } from "ag-studio";
 import { STUDIO_CURRENCIES } from "./studioData";
 
-// The built-in "PaySasa overview" report. Field ids (e.g. "invoices.collectedKES") refer to ./studioData.ts.
+// The built-in "PaySasa overview" report. Field ids like "invoices.collected" are the canonical
+// display-currency fields; "invoices.collectedKES" etc. are the per-currency fields.
 // Canvas is 24 tracks wide. One y-axis per chart; money is per currency.
 const at = (xTrack: number, yTrack: number, xSpan: number, ySpan: number): AgWidgetLayoutState => ({ xTrack, yTrack, xSpan, ySpan });
 const title = (text: string) => ({ title: { enabled: true, text } });
@@ -24,86 +25,90 @@ export const PAGE_TITLES: Record<string, string> = {
   agent: "Agent audit trail",
 };
 
-const cashflow: AgPageState = {
-  id: "cashflow",
-  widgets: {
-    "kpi-invoiced": kpi("Invoiced (KES)", sum("invoices.invoicedKES")),
-    "kpi-collected": kpi("Collected (KES)", sum("invoices.collectedKES")),
-    "kpi-outstanding": kpi("Awaiting (KES)", sum("invoices.outstandingKES"), false),
-    "kpi-overdue": kpi("Overdue (KES)", sum("invoices.overdueKES"), false),
-    "invoiced-vs-collected": {
-      type: "column-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "calendar::month" }], valueKey: [sum("invoices.invoicedKES"), sum("invoices.collectedKES")] },
-      format: { ...title("Invoiced vs collected by month (KES)"), ...legend },
-    },
-    aging: {
-      type: "bar-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "receivables.agingBucket" }], valueKey: [sum("receivables.outstandingKES")] },
-      // Bucket labels are named so they sort in lateness order.
-      sort: [{ field: { id: "receivables.agingBucket" }, direction: "asc" }],
-      format: title("Receivables aging (KES)"),
-    },
-    "top-clients": {
-      type: "bar-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "clients.name" }], valueKey: [sum("invoices.invoicedKES")] },
-      sort: [{ field: sum("invoices.invoicedKES"), direction: "desc" }],
-      format: title("Top clients by invoiced (KES)"),
-    },
-    "by-currency": {
-      type: "pivot-grid",
-      dataMapping: {
-        rows: [{ id: "invoices.statusGroup" }],
-        columns: [],
-        values: moneySums("invoices.invoiced"),
+function cashflowPage(currency: string): AgPageState {
+  return {
+    id: "cashflow",
+    widgets: {
+      "kpi-invoiced": kpi(`Invoiced (${currency})`, sum("invoices.invoiced")),
+      "kpi-collected": kpi(`Collected (${currency})`, sum("invoices.collected")),
+      "kpi-outstanding": kpi(`Awaiting (${currency})`, sum("invoices.outstanding"), false),
+      "kpi-overdue": kpi(`Overdue (${currency})`, sum("invoices.overdue"), false),
+      "invoiced-vs-collected": {
+        type: "column-chart-grouped",
+        dataMapping: { categoryKey: [{ id: "calendar::month" }], valueKey: [sum("invoices.invoiced"), sum("invoices.collected")] },
+        format: { ...title(`Invoiced vs collected by month (${currency})`), ...legend },
       },
-      format: title("Invoiced by status, each currency separately"),
+      aging: {
+        type: "bar-chart-grouped",
+        dataMapping: { categoryKey: [{ id: "receivables.agingBucket" }], valueKey: [sum("receivables.outstanding")] },
+        // Bucket labels are named so they sort in lateness order.
+        sort: [{ field: { id: "receivables.agingBucket" }, direction: "asc" }],
+        format: title(`Receivables aging (${currency})`),
+      },
+      "top-clients": {
+        type: "bar-chart-grouped",
+        dataMapping: { categoryKey: [{ id: "clients.name" }], valueKey: [sum("invoices.invoiced")] },
+        sort: [{ field: sum("invoices.invoiced"), direction: "desc" }],
+        format: title(`Top clients by invoiced (${currency})`),
+      },
+      "by-currency": {
+        type: "pivot-grid",
+        dataMapping: {
+          rows: [{ id: "invoices.statusGroup" }],
+          columns: [],
+          values: moneySums("invoices.invoiced"),
+        },
+        format: title("Invoiced by status, each currency separately"),
+      },
+      approvals: custom("paysasa-approvals", "Needs your approval"),
     },
-    approvals: custom("paysasa-approvals", "Needs your approval"),
-  },
-  widgetLayout: {
-    "kpi-invoiced": at(0, 0, 6, 7),
-    "kpi-collected": at(6, 0, 6, 7),
-    "kpi-outstanding": at(12, 0, 6, 7),
-    "kpi-overdue": at(18, 0, 6, 7),
-    "invoiced-vs-collected": at(0, 7, 16, 18),
-    approvals: at(16, 7, 8, 18),
-    aging: at(0, 25, 12, 16),
-    "top-clients": at(12, 25, 12, 16),
-    "by-currency": at(0, 41, 24, 12),
-  },
-};
+    widgetLayout: {
+      "kpi-invoiced": at(0, 0, 6, 7),
+      "kpi-collected": at(6, 0, 6, 7),
+      "kpi-outstanding": at(12, 0, 6, 7),
+      "kpi-overdue": at(18, 0, 6, 7),
+      "invoiced-vs-collected": at(0, 7, 16, 18),
+      approvals: at(16, 7, 8, 18),
+      aging: at(0, 25, 12, 16),
+      "top-clients": at(12, 25, 12, 16),
+      "by-currency": at(0, 41, 24, 12),
+    },
+  };
+}
 
-const guardrails: AgPageState = {
-  id: "guardrails",
-  widgets: {
-    "kpi-awaiting": kpi("Payouts awaiting approval", sum("payouts.needsApproval"), false),
-    "kpi-scheduled": kpi("Scheduled payouts (KES)", sum("payouts.amountKES")),
-    "kpi-paid-out": kpi("Paid out (KES)", sum("payouts.paidOutKES")),
-    pipeline: custom("paysasa-pipeline", "Money guardrail: where every payout is"),
-    "by-payee": {
-      type: "bar-chart-grouped",
-      dataMapping: { categoryKey: [{ id: "payouts.payee" }], valueKey: [sum("payouts.amountKES")] },
-      format: title("Payouts by collaborator (KES)"),
-    },
-    "stage-grid": {
-      type: "pivot-grid",
-      dataMapping: {
-        rows: [{ id: "payouts.stage" }],
-        columns: [],
-        values: [sum("payouts.payoutCount"), ...moneySums("payouts.amount")],
+function guardrailsPage(currency: string): AgPageState {
+  return {
+    id: "guardrails",
+    widgets: {
+      "kpi-awaiting": kpi("Payouts awaiting approval", sum("payouts.needsApproval"), false),
+      "kpi-scheduled": kpi(`Scheduled payouts (${currency})`, sum("payouts.amount")),
+      "kpi-paid-out": kpi(`Paid out (${currency})`, sum("payouts.paidOut")),
+      pipeline: custom("paysasa-pipeline", "Money guardrail: where every payout is"),
+      "by-payee": {
+        type: "bar-chart-grouped",
+        dataMapping: { categoryKey: [{ id: "payouts.payee" }], valueKey: [sum("payouts.amount")] },
+        format: title(`Payouts by collaborator (${currency})`),
       },
-      format: title("Payouts by stage, each currency separately"),
+      "stage-grid": {
+        type: "pivot-grid",
+        dataMapping: {
+          rows: [{ id: "payouts.stage" }],
+          columns: [],
+          values: [sum("payouts.payoutCount"), ...moneySums("payouts.amount")],
+        },
+        format: title("Payouts by stage, each currency separately"),
+      },
     },
-  },
-  widgetLayout: {
-    "kpi-awaiting": at(0, 0, 8, 7),
-    "kpi-scheduled": at(8, 0, 8, 7),
-    "kpi-paid-out": at(16, 0, 8, 7),
-    pipeline: at(0, 7, 24, 12),
-    "by-payee": at(0, 19, 8, 16),
-    "stage-grid": at(8, 19, 16, 16),
-  },
-};
+    widgetLayout: {
+      "kpi-awaiting": at(0, 0, 8, 7),
+      "kpi-scheduled": at(8, 0, 8, 7),
+      "kpi-paid-out": at(16, 0, 8, 7),
+      pipeline: at(0, 7, 24, 12),
+      "by-payee": at(0, 19, 8, 16),
+      "stage-grid": at(8, 19, 16, 16),
+    },
+  };
+}
 
 const agent: AgPageState = {
   id: "agent",
@@ -135,9 +140,17 @@ const agent: AgPageState = {
   },
 };
 
-// The filters panel starts collapsed: there are no report-level filters by default.
-export const defaultReport: AgReportState = {
-  selectedPageId: cashflow.id,
-  pages: [cashflow, guardrails, agent],
-  panels: { filters: { collapsed: true } },
-};
+/** The PaySasa overview with its money labels and canonical fields in `currency`. */
+export function buildDefaultReport(currency: string): AgReportState {
+  const code = currency.trim().toUpperCase() || "KES";
+  const cashflow = cashflowPage(code);
+  const guardrails = guardrailsPage(code);
+  return {
+    selectedPageId: cashflow.id,
+    pages: [cashflow, guardrails, agent],
+    panels: { filters: { collapsed: true } },
+  };
+}
+
+/** Backwards-compatible default (KES) for callers that don't have a profile yet. */
+export const defaultReport = buildDefaultReport("KES");

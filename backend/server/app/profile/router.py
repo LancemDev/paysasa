@@ -7,7 +7,7 @@ from app.activity import log_activity
 from app.auth import get_user_id
 from app.db import get_pool
 from app.errors import AppError
-from app.money import MoneyError, check_paypal_currency
+from app.money import MoneyError, check_currency
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -41,7 +41,7 @@ async def get_profile(user_id: UUID = Depends(get_user_id)):
 @router.patch("")
 async def update_profile(body: ProfileUpdate, user_id: UUID = Depends(get_user_id)):
     try:
-        currency = check_paypal_currency(body.default_currency)
+        currency = check_currency(body.default_currency)
     except MoneyError as e:
         raise AppError(422, "invalid_request", str(e))
     async with get_pool().connection() as conn:

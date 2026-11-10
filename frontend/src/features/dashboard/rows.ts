@@ -1,4 +1,5 @@
 import type { ActivityLogEntry, Contact, Invoice, PendingAction } from "@/types/api";
+import { actionSummary } from "@/lib/actionSummary";
 import { daysOverdue } from "@/lib/dates";
 import {
   ACTION_STAGES,
@@ -87,6 +88,7 @@ export function buildActionRows(actions: PendingAction[], contacts: Map<string, 
     const stage = ACTION_STAGES[actionStage(a.status)];
     const inv = a.trigger_invoice_id ? invoices.get(a.trigger_invoice_id) : undefined;
     const client = inv ? contacts.get(inv.contact_id)?.name : undefined;
+    const payeeName = a.type === "payout" ? contactName(contacts, a.payee_contact_id) : (client ?? "Client");
     const ref = inv ? invoiceRef(inv) : "";
     let triggerLabel = "";
     if (inv) {
@@ -100,8 +102,8 @@ export function buildActionRows(actions: PendingAction[], contacts: Map<string, 
       statusDisplay: actionStatusDisplay(a.status, a.type),
       stageLabel: stage.label,
       stageOrder: stage.order,
-      summary: a.summary,
-      payeeName: a.type === "payout" ? contactName(contacts, a.payee_contact_id) : (client ?? "Client"),
+      summary: actionSummary(a, { payeeName, clientName: client, invoice: inv }),
+      payeeName,
       amount_minor: a.type === "payout" ? a.amount_minor : (inv?.amount_minor ?? null),
       currency: (a.type === "payout" ? a.currency : inv?.currency)?.trim() ?? null,
       triggerInvoiceId: a.trigger_invoice_id,

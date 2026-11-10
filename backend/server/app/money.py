@@ -1,9 +1,10 @@
 """Money helpers. Amounts are integer minor units; no floating-point maths on money."""
 import re
 
-DEFAULT_CURRENCY = "USD"
+DEFAULT_CURRENCY = "KES"
 ALLOWED_CURRENCIES: tuple[str, ...] = ("KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF")
-# The subset PayPal can invoice and pay out in. KES is not a PayPal REST currency, so it is display-only.
+# The subset PayPal can invoice and pay out in. KES is not a PayPal REST currency, so it is
+# display-only: new invoices fall back to USD when the display currency isn't billable.
 PAYPAL_CURRENCIES: tuple[str, ...] = ("USD", "EUR", "GBP", "CAD", "AUD", "CHF")
 _SYMBOLS = {"KES": "KSh ", "USD": "$", "EUR": "€", "GBP": "£", "CAD": "CA$", "AUD": "A$", "CHF": "CHF "}
 _DECIMALS = 2  # every allowed currency uses 2 decimal places
@@ -34,6 +35,12 @@ def check_paypal_currency(currency: str) -> str:
     if code in ALLOWED_CURRENCIES:
         raise MoneyError(f"PayPal can't invoice or pay out in {code}. Use one of: {supported}.")
     raise MoneyError(f"Currency {currency!r} is not supported. Use one of: {supported}.")
+
+
+def invoice_currency(display_currency: str | None) -> str:
+    """The currency new invoices use: the display currency when PayPal supports it, else USD."""
+    code = (display_currency or "").strip().upper()
+    return code if code in PAYPAL_CURRENCIES else "USD"
 
 
 def parse_amount(value: str) -> int:

@@ -17,6 +17,8 @@ export interface StudioInput {
   contacts: Contact[];
   activity: ActivityLogEntry[];
   now?: Date;
+  /** The currency the rows were restated in; canonical report fields only hold amounts in it. */
+  displayCurrency?: string;
 }
 
 const CALENDAR = "calendar";
@@ -37,7 +39,9 @@ function agingBucket(days: number, open: boolean): string | null {
   return "61+ days late";
 }
 
-export function buildRows({ invoices, actions, contacts, activity, now = new Date() }: StudioInput) {
+export function buildRows({ invoices, actions, contacts, activity, now = new Date(), displayCurrency = "KES" }: StudioInput) {
+  const display = displayCurrency.trim().toUpperCase();
+  const inDisplay = (currency: string | null | undefined) => (currency ?? "").trim().toUpperCase() === display;
   const nameOf = new Map(contacts.map((c) => [c.id, c.name]));
   const clients = contacts.map((c) => ({ id: c.id, name: c.name, email: c.email, role: c.role === "contractor" ? "Contractor" : "Client" }));
 
@@ -62,6 +66,12 @@ export function buildRows({ invoices, actions, contacts, activity, now = new Dat
       agingBucket: agingBucket(late, open),
       daysToPay,
       invoiceCount: 1,
+      // Canonical fields for the built-in report: only rows already in the display currency, so
+      // sample history in other currencies can never be added to live totals.
+      invoiced: issued && inDisplay(inv.currency) ? major(inv.amount_minor) : null,
+      collected: paid && inDisplay(inv.currency) ? major(inv.amount_minor) : null,
+      outstanding: open && inDisplay(inv.currency) ? major(inv.amount_minor) : null,
+      overdue: open && late > 0 && inDisplay(inv.currency) ? major(inv.amount_minor) : null,
       ...perCurrency("invoiced", issued ? inv.amount_minor : null, inv.currency),
       ...perCurrency("collected", paid ? inv.amount_minor : null, inv.currency),
       ...perCurrency("outstanding", open ? inv.amount_minor : null, inv.currency),
@@ -86,6 +96,8 @@ export function buildRows({ invoices, actions, contacts, activity, now = new Dat
         splitPercent: a.split_percent == null ? null : Number(a.split_percent),
         payoutCount: 1,
         needsApproval: a.status === "awaiting_approval" ? 1 : 0,
+        amount: inDisplay(a.currency) ? major(a.amount_minor) : null,
+        paidOut: a.status === "succeeded" && inDisplay(a.currency) ? major(a.amount_minor) : null,
         ...perCurrency("amount", a.amount_minor, a.currency),
         ...perCurrency("paidOut", a.status === "succeeded" ? a.amount_minor : null, a.currency),
       };
@@ -112,6 +124,7 @@ export function buildRows({ invoices, actions, contacts, activity, now = new Dat
       agingOrder: AGING_ORDER.indexOf(r.agingBucket ?? AGING_ORDER[0]),
       daysOverdue: r.daysOverdue,
       currency: r.currency,
+      outstanding: r.outstanding ?? null,
       ...Object.fromEntries(STUDIO_CURRENCIES.map((c) => [`outstanding${c}`, r[`outstanding${c}` as keyof typeof r] ?? null])),
     }));
 
@@ -137,6 +150,17 @@ function moneyFields(prefix: string, label: string, description: string): AgFiel
   }));
 }
 
+/** One money field in the display currency, used by the built-in report. */
+function displayMoneyField(id: string, label: string, description: string, currency: string): AgFieldDefinition {
+  return {
+    id,
+    name: `${label} (${currency})`,
+    description,
+    format: "currencyFormat",
+    createValueFormatter: () => (v: number | null | undefined) => (v == null ? "" : formatMoney(Math.round(v * 100), currency)),
+  };
+}
+
 const manyToOne = (id: string, source: string, target: string): AgRelationDefinition => {
   const [st, sf] = source.split(".");
   const [tt, tf] = target.split(".");
@@ -148,7 +172,7 @@ const onCalendar = (tableId: string, fieldId: string): AgRelationDefinition => (
   target: { calendarId: CALENDAR },
 });
 
-export function buildStudioData(rows: StudioRows, now = new Date()): AgDataSourcesDefinition {
+export function buildStudioData(rows: StudioRows, now = new Date(), displayCurrency = "KES"): AgDataSourcesDefinition {
   // Studio reads the calendar when it's created (the page remounts it when the sample toggle changes).
   // Start at the earliest row, or 30 days back, and end today: new live rows are always dated today.
   const dates = [...rows.invoices.map((r) => r.createdDate), ...rows.payouts.map((r) => r.createdDate), ...rows.activity.map((r) => r.date)]
@@ -160,7 +184,8 @@ export function buildStudioData(rows: StudioRows, now = new Date()): AgDataSourc
   return {
     description:
       "PaySasa: invoices a freelancer sent through PayPal, payouts to collaborators that need human approval, and an audit log of everything the AI agent, PayPal and the user did. " +
-      "Money is split into one field per currency (e.g. invoicedUSD, invoicedGBP); never add fields of different currencies together.",
+      "Money is split into one field per currency (e.g. invoicedUSD, invoicedGBP); never add fields of different currencies together. " +
+      `The built-in report uses the display-currency fields (invoiced, collected, outstanding, amount), which hold ${displayCurrency}.`,
     sources: [
       {
         id: "clients",
@@ -199,6 +224,10 @@ export function buildStudioData(rows: StudioRows, now = new Date()): AgDataSourc
           ...moneyFields("collected", "Collected", "Value of paid invoices."),
           ...moneyFields("outstanding", "Outstanding", "Value of invoices awaiting payment."),
           ...moneyFields("overdue", "Overdue", "Value of invoices past their due date."),
+          displayMoneyField("invoiced", "Invoiced", "Invoiced in the display currency (built-in report).", displayCurrency),
+          displayMoneyField("collected", "Collected", "Collected in the display currency.", displayCurrency),
+          displayMoneyField("outstanding", "Outstanding", "Awaiting payment in the display currency.", displayCurrency),
+          displayMoneyField("overdue", "Overdue", "Past due in the display currency.", displayCurrency),
         ],
       },
       {
@@ -216,6 +245,7 @@ export function buildStudioData(rows: StudioRows, now = new Date()): AgDataSourc
             ["currency", "Currency", "textFormat"],
           ]),
           ...moneyFields("outstanding", "Outstanding", "Value still awaiting payment."),
+          displayMoneyField("outstanding", "Outstanding", "Awaiting payment in the display currency.", displayCurrency),
         ],
       },
       {
@@ -240,6 +270,8 @@ export function buildStudioData(rows: StudioRows, now = new Date()): AgDataSourc
           ]),
           ...moneyFields("amount", "Payout amount", "Scheduled payout amount."),
           ...moneyFields("paidOut", "Paid out", "Payouts PayPal confirmed as completed."),
+          displayMoneyField("amount", "Payout amount", "Scheduled payout in the display currency.", displayCurrency),
+          displayMoneyField("paidOut", "Paid out", "Completed payout in the display currency.", displayCurrency),
         ],
       },
       {

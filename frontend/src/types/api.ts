@@ -68,6 +68,9 @@ export interface Invoice {
   agent_run_id: Uuid | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
+  /** Set by the display-currency layer when the row is restated in the profile's currency. */
+  source_amount_minor?: number;
+  source_currency?: CurrencyCode;
 }
 
 export interface PendingAction {
@@ -97,6 +100,9 @@ export interface PendingAction {
   agent_run_id: Uuid | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
+  /** Set by the display-currency layer when the row is restated in the profile's currency. */
+  source_amount_minor?: number | null;
+  source_currency?: CurrencyCode | null;
 }
 
 export interface ToolCallLog {

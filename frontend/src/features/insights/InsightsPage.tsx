@@ -7,24 +7,25 @@ import { Segmented } from "@/components/ui/Segmented";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { env } from "@/lib/env";
-import { useActions, useActivity, useContacts, useInvoices } from "@/lib/queries";
+import { DEFAULT_CURRENCY } from "@/lib/money";
+import { useActions, useActivity, useContacts, useDisplayCurrency, useInvoices } from "@/lib/queries";
 import { sampleHistory } from "./sampleHistory";
 import { buildRows, buildStudioData, type StudioInput } from "./studioData";
-import { PAGE_TITLES, defaultReport } from "./studioReport";
+import { PAGE_TITLES, buildDefaultReport } from "./studioReport";
 import { paysasaStudioTheme } from "./studioTheme";
 import { InsightsDataContext } from "./widgets/insightsContext";
 import { paysasaWidgets } from "./widgets/registry";
 
-const STORAGE_KEY = "paysasa.insights.report.v1";
+const storageKey = (currency: string) => `paysasa.insights.report.v2.${currency}`;
 
-function loadSaved(): AgReportState {
+function loadSaved(currency: string, fallback: AgReportState): AgReportState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(currency));
     if (raw) return JSON.parse(raw) as AgReportState;
   } catch {
     /* fall through to the default report */
   }
-  return defaultReport;
+  return fallback;
 }
 
 /**
@@ -37,8 +38,10 @@ export default function InsightsPage() {
   const actions = useActions();
   const contacts = useContacts();
   const activity = useActivity();
+  const displayCurrency = useDisplayCurrency() ?? DEFAULT_CURRENCY;
+  const defaultReport = useMemo(() => buildDefaultReport(displayCurrency), [displayCurrency]);
   const apiRef = useRef<AgStudioApi | null>(null);
-  const [initialState] = useState(loadSaved);
+  const [initialState] = useState(() => loadSaved(displayCurrency, defaultReport));
   const [selectedPage, setSelectedPage] = useState(initialState.selectedPageId);
   const [pages, setPages] = useState(() => initialState.pages.map((p) => p.id));
   const [mode, setMode] = useState<AgStudioMode>("view");
@@ -57,7 +60,10 @@ export default function InsightsPage() {
       activity: [...live.activity, ...s.activity],
     };
   }, [invoices.data, actions.data, contacts.data, activity.data, useSample]);
-  const studioData = useMemo(() => buildStudioData(buildRows(input)), [input]);
+  const studioData = useMemo(
+    () => buildStudioData(buildRows({ ...input, displayCurrency }), undefined, displayCurrency),
+    [input, displayCurrency],
+  );
   const widgetData = useMemo(() => ({ actions: input.actions, invoices: input.invoices, contacts: input.contacts, sample: useSample }), [input, useSample]);
 
   const selectPage = (id: string) => {
@@ -68,12 +74,12 @@ export default function InsightsPage() {
   const save = () => {
     const api = apiRef.current;
     if (!api) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(api.getState()));
+    localStorage.setItem(storageKey(displayCurrency), JSON.stringify(api.getState()));
     setMode("view");
     toast.success("Dashboard saved", "Your layout is saved on this device.");
   };
   const reset = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey(displayCurrency));
     apiRef.current?.setState(defaultReport);
     apiRef.current?.clearHistory();
     setPages(defaultReport.pages.map((p) => p.id));

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorPanel } from "@/components/ui/EmptyState";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { actionSummary } from "@/lib/actionSummary";
 import { formatDateTime, relativeTime } from "@/lib/dates";
 import { formatMoneyWithCode } from "@/lib/money";
 import { useActions, useContactsById, useInvoicesById, usePendingApprovals } from "@/lib/queries";
@@ -60,7 +61,7 @@ export function ApprovalsPage() {
                           Send <span className="tabular">{formatMoneyWithCode(a.amount_minor ?? 0, a.currency)}</span> to {payee?.name ?? "payee"}
                         </>
                       ) : (
-                        a.summary
+                        actionSummary(a, { clientName: client?.name, invoice: inv })
                       )}
                     </p>
                     <p className="text-[13px] text-muted">
