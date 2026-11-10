@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, formatMoneyWithCode, formatTotals, minorToDecimalString, totalsByCurrency } from "./money";
+import { formatMoney, formatMoneyWithCode, formatTotals, isPayPalBillable, minorToDecimalString, totalsByCurrency } from "./money";
 
 describe("formatMoney", () => {
   it("formats each record in its own currency", () => {
@@ -53,5 +53,14 @@ describe("totals", () => {
 
   it("is empty for no rows", () => {
     expect(formatTotals({})).toBe("");
+  });
+});
+
+describe("isPayPalBillable", () => {
+  it("accepts currencies PayPal can invoice in and rejects KES", () => {
+    expect(isPayPalBillable("USD")).toBe(true);
+    expect(isPayPalBillable(" gbp ")).toBe(true);
+    expect(isPayPalBillable("KES")).toBe(false);
+    expect(isPayPalBillable(undefined)).toBe(false);
   });
 });

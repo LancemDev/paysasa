@@ -8,7 +8,10 @@ import { cn } from "@/components/ui/cn";
 import { useAuth } from "@/auth/AuthProvider";
 import { env } from "@/lib/env";
 import { usePayPalMode } from "@/lib/paypalMode";
-import { CURRENCY_LABELS, DEFAULT_CURRENCY, SELECTABLE_CURRENCIES, formatMoney, minorToDecimalString } from "@/lib/money";
+import {
+  CURRENCY_LABELS, DEFAULT_CURRENCY, PAYPAL_BILLABLE_CURRENCIES, PAYPAL_FALLBACK_CURRENCY, formatMoney, isPayPalBillable,
+  minorToDecimalString,
+} from "@/lib/money";
 import { useProfile } from "@/lib/queries";
 import { qk } from "@/lib/queryKeys";
 import { api, toUserMessage } from "@/lib/api";
@@ -28,12 +31,17 @@ export function SettingsPage() {
   const currency = profile.data?.default_currency?.trim() || DEFAULT_CURRENCY;
   const [threshold, setThreshold] = useState(minorToDecimalString(settings.secondConfirmMinor, 2));
   const [thresholdError, setThresholdError] = useState<string | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState(currency);
+  // PayPal can't invoice in every currency we display (KES). Only offer billable ones as the invoice default,
+  // and preselect USD when the saved default isn't billable, so one click fixes it.
+  const currencyBillable = isPayPalBillable(currency);
+  const initialSelection = (code: string) => (isPayPalBillable(code) ? code : PAYPAL_FALLBACK_CURRENCY);
+  const [selectedCurrency, setSelectedCurrency] = useState(initialSelection(currency));
   const [savingCurrency, setSavingCurrency] = useState(false);
   const currencySelectId = useId();
+  const currencyHintId = useId();
 
   useEffect(() => {
-    setSelectedCurrency(profile.data?.default_currency?.trim() || DEFAULT_CURRENCY);
+    setSelectedCurrency(initialSelection(profile.data?.default_currency?.trim() || DEFAULT_CURRENCY));
   }, [profile.data?.default_currency]);
 
   const saveThreshold = () => {
@@ -93,14 +101,25 @@ export function SettingsPage() {
               value={selectedCurrency}
               onChange={(e) => setSelectedCurrency(e.target.value)}
               disabled={profile.isLoading || savingCurrency}
+              aria-describedby={currencyHintId}
             >
-              {SELECTABLE_CURRENCIES.map((code) => (
+              {PAYPAL_BILLABLE_CURRENCIES.map((code) => (
                 <option key={code} value={code}>
                   {CURRENCY_LABELS[code] ?? code}
                 </option>
               ))}
             </select>
-            <p className="text-[13px] text-muted">Used when you create invoices without specifying a currency. You can still choose another supported currency per invoice.</p>
+            {!profile.isLoading && !currencyBillable ? (
+              <p id={currencyHintId} role="status" className="text-[13px] font-medium text-danger">
+                Your default is {currency}, which PayPal can't invoice in, so invoices without a currency will fail.
+                Save {selectedCurrency} (or another currency) to fix this.
+              </p>
+            ) : (
+              <p id={currencyHintId} className="text-[13px] text-muted">
+                Used when you create invoices without specifying a currency. These are the currencies PayPal can invoice
+                and pay out in; Kenyan Shillings aren't supported by PayPal.
+              </p>
+            )}
           </div>
           <Button onClick={() => void saveCurrency()} disabled={profile.isLoading || savingCurrency || selectedCurrency === currency}>
             {savingCurrency ? "Saving…" : "Save"}

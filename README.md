@@ -12,7 +12,7 @@ An AI payments assistant for African freelancers. One sentence sends a PayPal in
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-0b3d2c)
 ![PayPal Invoicing · Payouts · Webhooks](https://img.shields.io/badge/PayPal-Invoicing%20%C2%B7%20Payouts%20%C2%B7%20Webhooks-003087)
-![Gemini function calling](https://img.shields.io/badge/AI-Gemini%20function%20calling-c8f169)
+![Claude tool use](https://img.shields.io/badge/AI-Claude%20tool%20use-c8f169)
 ![AG Grid + AG Studio](https://img.shields.io/badge/AG%20Grid-%2B%20AG%20Studio-1f8a54)
 ![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA%20%C2%B7%20voice%20%C2%B7%20high%20contrast-0b3d2c)
 ![English · Kiswahili](https://img.shields.io/badge/lang-English%20%C2%B7%20Kiswahili-0b3d2c)
@@ -85,13 +85,13 @@ sequenceDiagram
     actor K as Kwame (freelancer)
     participant W as Web app (React)
     participant A as API (FastAPI)
-    participant C as Gemini (function calling)
+    participant C as Claude (tool use)
     participant P as PayPal
     participant D as Supabase (Postgres + Realtime)
 
     K->>W: "Invoice Daniel $1,200… once paid, pay my editor 20%"
     W->>A: POST /api/agent/message
-    A->>C: system prompt + contacts + 6 tools
+    A->>C: system prompt + contacts + 7 tools
     C-->>A: find_contact("Daniel Carter")
     C-->>A: send_invoice(...)
     A->>P: Invoicing: create + send invoice
@@ -121,19 +121,22 @@ All PayPal calls go through one interface, `PayPalAdapter` in [`paypal_contract.
 
 ### AI: an agent that acts, but can't spend
 
-- **Model and loop:** Google Gemini (`gemini-flash-latest`, set by `LLM_MODEL`) with native function calling, running a multi-turn loop (`app/agent/run.py`, `app/agent/llm.py`).
-- **Six typed tools**, each validated with Pydantic:
+- **Model and loop:** Anthropic Claude (`claude-sonnet-5-5` by default, set by `LLM_MODEL`) through the Messages API with tool use, running a multi-turn loop of up to 6 tool rounds (`app/agent/run.py`, `app/agent/llm.py`).
+- **Seven typed tools**, each validated with Pydantic:
   - `find_contact`, `create_contact`
   - `send_invoice`
   - `schedule_payout`
+  - `draft_reminder` (queues a reminder for approval; it never sends one)
   - `list_invoices`, `list_pending_actions`
 - **Context:** the system prompt carries the user's contacts and nicknames ("my editor"), default currency and today's date. The model asks one short question instead of guessing an amount, currency or recipient.
 - **Guardrails are in code, not the prompt:**
-  - Amounts are capped (`MAX_AMOUNT_MINOR`).
+  - Amounts are capped (`MAX_AMOUNT_MINOR`), and a payout can't be larger than its invoice.
+  - A contact can only be created with an email the user actually typed, so the model can't invent a payee address.
+  - Payout splits are calculated by backend integer arithmetic, not by the model.
   - Payouts are created as `locked` and can only unlock from a PayPal webhook.
   - There is **no tool that approves or executes a payout**.
 - **Transparency:** each tool call is logged to `activity_log` and streamed to the UI as a step trace, then rebuilt from `agent_runs.tool_calls`.
-- **Reminders:** the daily chase job asks Gemini for a short, polite draft and checks that it mentions the right amount. A human edits and sends it (`app/agent/draft_reminder.py`).
+- **Reminders:** the daily chase job asks Claude for a short, polite draft and checks that it mentions the right amount. If the draft is missing, too long, has a link or names the wrong amount, a fixed template is used instead. A human edits and approves it before PayPal sends it (`app/agent/draft_reminder.py`).
 - **Language:** the assistant replies in the language the user writes in, so a Kiswahili request gets a Kiswahili reply.
 
 ### AG Grid and AG Studio
@@ -197,7 +200,7 @@ flowchart LR
       CRON["Daily chase job<br/>06:00 UTC"]
     end
     SB[("Supabase<br/>Postgres + RLS<br/>Auth + Realtime")]
-    LLM["Gemini<br/>function calling"]
+    LLM["Claude<br/>tool use"]
     PP["PayPal<br/>Invoicing · Payouts · Webhooks"]
 
     UI -- "commands (Bearer JWT)" --> API
@@ -211,12 +214,12 @@ flowchart LR
 
 - **Writes** go only through the API, using the service connection. **Reads** come straight from Supabase. Row-level security limits every user to their own rows. Realtime pushes `invoices`, `pending_actions`, `contacts` and `activity_log` changes, and the UI falls back to polling every 15 seconds.
 - **Money** is stored as integer minor units, never floats. It's formatted per currency.
-- **Payout state machine:** `locked → awaiting_approval → approved → executing → submitted → succeeded`, with `failed`, `rejected` and `cancelled` as exits (`app/transitions.py`). A double-click can't approve twice, a 409 conflict is reconciled with the server, and an unknown outcome never shows as "sent".
+- **Payout state machine:** `locked → awaiting_approval → executing → submitted → succeeded`, with `failed`, `rejected` and `cancelled` as exits (`app/transitions.py`). A double-click can't approve twice, a 409 conflict is reconciled with the server, and an unknown outcome never shows as "sent".
 
 | Layer | Stack |
 |---|---|
 | Frontend | React 19, TypeScript, Vite 8, Tailwind CSS 4, TanStack Query, Radix UI, motion, AG Grid 36 (Enterprise), AG Studio 3 |
-| Backend | Python 3.12, FastAPI, Pydantic 2, psycopg 3, Google GenAI SDK |
+| Backend | Python 3.12, FastAPI, Pydantic 2, psycopg 3, Anthropic Python SDK, httpx (PayPal REST) |
 | Data | Supabase (Postgres, Auth, Realtime, RLS) |
 | Hosting | Render (static site + web service + cron) |
 | Testing | Vitest + Testing Library, Playwright + axe-core, pytest |
@@ -241,13 +244,13 @@ docs/                 design notes, screenshots
 
 ## Run it locally
 
-**Requirements:** Node 20+, Python 3.12, and a Supabase project with `backend/supabase/migrations/0001_init.sql` applied.
+**Requirements:** Node 20+, Python 3.12, and a Supabase project with `backend/supabase/migrations/0001_init.sql` and `0002_default_currency_kes.sql` applied, in that order.
 
 ```sh
 # Backend
 cd backend/server
 python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env          # DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, LLM_MODEL
+cp .env.example .env          # DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, LLM_MODEL, PAYPAL_*
 .venv/bin/uvicorn app.main:app --reload            # http://localhost:8000
 
 # Frontend
@@ -267,7 +270,7 @@ All environment variables are documented in [`backend/README.md`](backend/README
 
 ```sh
 cd frontend
-npm test                          # 42 unit/component tests: approval flow, money, status, agent parsing
+npm test                          # 46 unit/component tests: approval flow, money, status, agent parsing
 npx playwright install chromium   # once
 npm run e2e                       # the Kwame flow (desktop + mobile), axe WCAG A/AA (light, dark, high contrast), 360px, tour, accessibility settings
 
@@ -283,7 +286,7 @@ The end-to-end tests run against an in-browser fake of the backend and Supabase 
 
 - **Sandbox only:** PaySasa runs against the PayPal sandbox; going live needs PayPal production approval for Payouts.
 - **Editing invoices:** there's no invoice edit or cancel yet, because the agent sends invoices immediately.
-- **Currencies:** USD, GBP and EUR. There's no currency conversion.
+- **Currencies:** invoices and payouts use currencies PayPal supports: USD, EUR, GBP, CAD, AUD and CHF. PayPal doesn't support Kenyan Shillings (KES), so KES is for display only. There's no currency conversion.
 
 ## Team
 

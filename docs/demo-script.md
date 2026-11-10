@@ -4,7 +4,16 @@ Judges are not required to watch past 3:00, so this runs about 2:45. Record at 1
 fresh sandbox account. Each beat names the judging criterion it serves.
 
 **Before recording**
-- The backend is running, and `ENABLE_DEV_ROUTES=true` for "Mark as paid".
+- The backend `/health` says `"paypal":"sandbox"`. Don't use the dev routes: the payment in the video must be a real
+  sandbox payment, so judges see PayPal's webhook do the work.
+- The PayPal sandbox app has a webhook pointing at `https://paysasa.onrender.com/webhooks/paypal`, subscribed to
+  `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED`, `PAYMENT.PAYOUTSBATCH.SUCCESS` and
+  `PAYMENT.PAYOUTSBATCH.DENIED`, and its ID is set as `PAYPAL_WEBHOOK_ID` on Render.
+- The demo user's default currency is **USD** (Settings). PayPal can't invoice in KES, so a KES default makes the
+  invoice fail.
+- Sarah's contact email is a PayPal **sandbox personal** account email, and you know the login for the sandbox
+  personal account that pays Daniel's invoice.
+- Rehearse the whole run once on the day of recording, end to end, before you press record.
 - The demo user is signed out, and contacts Daniel Carter and Sarah ("my editor") exist.
 - `VITE_AG_GRID_LICENSE_KEY` and `VITE_AG_STUDIO_LICENSE_KEY` are set, so there are no trial watermarks.
 - The "Your payment cycle" tracker is visible. Use Settings → "Show the getting-started checklist again" if you hid it.
@@ -23,3 +32,18 @@ fresh sandbox account. Each beat names the judging criterion it serves.
 **Fallbacks**
 - If the LLM is slow, keep talking over the live step trace; it shows progress while the agent works.
 - If realtime is down, the app refreshes every 15 seconds, and the connection chip says so honestly.
+- If the webhook doesn't arrive within about 30 seconds, check the Render logs for "rejected PayPal webhook" (wrong
+  `PAYPAL_WEBHOOK_ID`) or "unknown invoice" (the invoice was created by a different backend). Don't fake the payment
+  on camera.
+
+**Submitting on Devpost (deadline Nov 12, 2026, 12:00pm PST)**
+- Video: under 3:00, uploaded to YouTube as **Public**, with no copyrighted music or third-party trademarks you don't
+  have permission for.
+- Tools: name **Anthropic Claude** (tool use, agent loop and reminder drafts), **PayPal Invoicing, Payouts and
+  Webhooks** (sandbox), **AG Grid Enterprise + AG Studio**, **Render** and **Supabase**, and say how each is used.
+- Testing instructions: the live URL, the demo login (email **and** password), and a note that it runs on the PayPal
+  sandbox, so no real money moves.
+- Repository: `https://github.com/LancemDev/paysasa` (public, MIT). Make sure the About section has a description and
+  the live demo URL.
+- Sponsor prizes: enter **AG Grid** and **Render** only; we don't use APIMatic, Bryntum or Channel3.
+- Every team member must be at least the age of majority where they live (18 in Kenya).
