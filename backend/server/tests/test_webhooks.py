@@ -100,6 +100,65 @@ async def test_batch_webhook_before_submit_is_retried(client, pool, user, adapte
     assert await status(pool, "pending_actions", s["payout_id"]) == "succeeded"
 
 
+async def test_refund_cancels_payouts_not_yet_sent(client, pool, user, adapter):
+    s = await sent_invoice_with_payout(pool, adapter, user)
+    adapter.set_invoice_status(s["paypal_invoice_id"], "PAID")
+    await deliver(client, event("INVOICING.INVOICE.PAID", {"id": s["paypal_invoice_id"]}))
+    assert await status(pool, "pending_actions", s["payout_id"]) == "awaiting_approval"
+    sent = await submitted_payout(pool, adapter, user)  # a payout already with PayPal can't be recalled
+
+    r = await deliver(client, event("INVOICING.INVOICE.REFUNDED", {"id": s["paypal_invoice_id"], "status": "REFUNDED"}))
+    assert r.status_code == 200
+    assert await status(pool, "pending_actions", s["payout_id"]) == "cancelled"
+    assert await status(pool, "invoices", s["invoice_id"]) == "paid"
+    assert await status(pool, "pending_actions", sent["payout_id"]) == "submitted"
+    events = {r["event"] for r in await fetchall(pool, "select event from activity_log where actor = 'paypal'")}
+    assert {"invoice.refunded", "payout.cancelled"} <= events
+    # Approving the cancelled payout is refused, and nothing reaches PayPal.
+    from tests.conftest import auth
+    r = await client.post(f"/api/actions/{s['payout_id']}/approve", headers=auth(user))
+    assert r.status_code == 409 and adapter.payouts == {}
+
+
+def item_event(kind, key, batch="BATCH1"):
+    return event(f"PAYMENT.PAYOUTS-ITEM.{kind}", {
+        "payout_item_id": "ITEM1", "transaction_status": kind, "payout_batch_id": batch,
+        "payout_item": {"sender_item_id": key, "receiver": "sarah@example.com"},
+    })
+
+
+async def test_unclaimed_payout_item_marks_payout_failed(client, pool, user, adapter):
+    s = await submitted_payout(pool, adapter, user)
+    r = await deliver(client, item_event("UNCLAIMED", s["key"]))
+    assert r.status_code == 200
+    row = await fetchone(pool, "select * from pending_actions where id = %s", s["payout_id"])
+    assert row["status"] == "failed" and "UNCLAIMED" in row["error"]
+    # A batch SUCCESS arriving afterwards doesn't turn it back into a success.
+    await deliver(client, event("PAYMENT.PAYOUTSBATCH.SUCCESS", {"batch_header": {"payout_batch_id": "BATCH1"}}))
+    assert await status(pool, "pending_actions", s["payout_id"]) == "failed"
+
+
+async def test_payout_item_problem_after_success_is_logged(client, pool, user, adapter):
+    s = await submitted_payout(pool, adapter, user)
+    await deliver(client, event("PAYMENT.PAYOUTSBATCH.SUCCESS", {"batch_header": {"payout_batch_id": "BATCH1"}}))
+    r = await deliver(client, item_event("RETURNED", s["key"]))
+    assert r.status_code == 200
+    assert await status(pool, "pending_actions", s["payout_id"]) == "succeeded"
+    log = await fetchone(pool, "select * from activity_log where event = 'payout.item_problem'")
+    assert log is not None and "RETURNED" in log["message"]
+
+
+async def test_payout_item_before_submit_is_retried_and_success_item_ignored(client, pool, user, adapter):
+    s = await sent_invoice_with_payout(pool, adapter, user)
+    async with pool.connection() as conn:
+        cur = await conn.execute("update pending_actions set status = 'executing' where id = %s returning idempotency_key",
+                                 (s["payout_id"],))
+        key = (await cur.fetchone())["idempotency_key"]
+    assert (await deliver(client, item_event("UNCLAIMED", key, batch="B7"))).status_code == 500
+    assert (await deliver(client, item_event("SUCCEEDED", key, batch="B7"))).status_code == 200
+    assert await status(pool, "pending_actions", s["payout_id"]) == "executing"
+
+
 async def test_unknown_and_other_events(client, pool):
     r = await deliver(client, event("INVOICING.INVOICE.PAID", {"id": "INV2-NOPE"}))
     assert r.status_code == 200

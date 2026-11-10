@@ -97,12 +97,12 @@ async def test_create_contact_with_email_in_message(client, pool, user, llm):
 async def test_unsupported_currency_is_refused(client, pool, user, llm):
     llm.steps = [
         turn_calls(call("send_invoice", contact_id=str(user["john"]), description="Work", amount="5000", currency="XYZ")),
-        lambda results: reply("That currency isn't supported. I can invoice in KES, USD, EUR, GBP, CAD, AUD, or CHF."),
+        lambda results: reply("That currency isn't supported. I can invoice in USD, EUR, GBP, CAD, AUD, or CHF."),
     ]
     r = await client.post("/api/agent/message", json={"message": "Invoice John 5000 XYZ"}, headers=auth(user))
     err = llm.received[1][0].result["error"]
-    assert "KES" in err
-    assert "KES" in r.json()["reply"] or "currency" in r.json()["reply"].lower()
+    assert "USD" in err and "KES" not in err
+    assert "currency" in r.json()["reply"].lower()
     assert await fetchall(pool, "select * from invoices") == []
     assert "PayPal can create invoices in USD, EUR, GBP, CAD, AUD, CHF" in llm.systems[0]
 
@@ -154,6 +154,41 @@ async def test_guardrails(client, pool, user, other_user, llm, adapter):
     assert await fetchall(pool, "select * from pending_actions") == []
     errors = await fetchall(pool, "select * from activity_log where event like 'agent.%%.error'")
     assert len(errors) == 11
+
+
+async def test_payouts_cannot_exceed_invoice_in_total(client, pool, user, llm):
+    async with pool.connection() as conn:
+        cur = await conn.execute("insert into contacts (owner_id, name, email, role) values "
+                                 "(%s, 'Priya', 'priya@example.com', 'contractor') returning id", (user["id"],))
+        priya = str((await cur.fetchone())["id"])
+    inv = await make_sent_invoice(client, user, llm)  # $1,200.00
+    sarah = str(user["sarah"])
+
+    first = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv, payee_contact_id=sarah,
+                           split_percent=60)
+    assert first["status"] == "locked"
+    # 60% + 50% would be more than the invoice.
+    res = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv, payee_contact_id=priya,
+                         split_percent=50)
+    assert "add up to more than the invoice" in res["error"] and "$480.00" in res["error"]
+    # The same payout twice is refused, even though it would fit.
+    small = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv, payee_contact_id=priya,
+                           amount="100")
+    assert small["status"] == "locked"
+    res = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv, payee_contact_id=priya,
+                         amount="100.00")
+    assert "already scheduled" in res["error"]
+    # Exactly the rest of the invoice is allowed.
+    res = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv, payee_contact_id=priya,
+                         amount="380")
+    assert res["status"] == "locked"
+    # A rejected payout no longer counts against the invoice.
+    async with pool.connection() as conn:
+        await conn.execute("update pending_actions set status = 'rejected' where id = %s", (first["action_id"],))
+    res = await run_tool(client, user, llm, "schedule_payout", trigger_invoice_id=inv, payee_contact_id=sarah,
+                         split_percent=60)
+    assert res["status"] == "locked"
+    assert len(await fetchall(pool, "select * from pending_actions where status = 'locked'")) == 3
 
 
 async def test_fixed_amount_payout_and_already_paid(client, pool, user, llm):

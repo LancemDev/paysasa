@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ActionCardModel } from "@/lib/agent";
 import { makeInvoice, makePayout, OWNER, renderWithData } from "@/test/utils";
 import { ActionCards } from "./ActionCards";
@@ -13,6 +13,13 @@ const cards: ActionCardModel[] = [
 ];
 
 describe("ActionCards", () => {
+  // The fixture invoice is due 2026-11-05. Pin "today" before that, or it reads as Overdue once the date passes.
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-22T09:00:00Z"));
+  });
+  afterAll(() => vi.useRealTimers());
+
   it("renders the invoice preview and a locked payout", () => {
     renderWithData(<ActionCards cards={cards} />, { invoices: [makeInvoice()], actions: [makePayout({ status: "locked", summary: "Payout Sarah $240.00 upon settlement" })] });
     expect(screen.getByRole("heading", { name: "Invoice sent via PayPal" })).toBeInTheDocument();

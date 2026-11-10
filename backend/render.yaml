@@ -20,11 +20,11 @@ services:
       - key: LLM_MODEL
         value: claude-sonnet-5-5
       - key: PAYPAL_ADAPTER
-        value: mock
+        value: real          # PayPal sandbox REST API (PAYPAL_ENV below); "mock" is for tests and offline dev
       - key: MAX_AMOUNT_MINOR
         value: "1000000"
       - key: ENABLE_DEV_ROUTES
-        value: "true"
+        value: "false"       # /dev/* has no auth; never enable on a public deployment
       - key: CORS_ORIGIN
         sync: false
       - key: PAYPAL_CLIENT_ID

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convertMinor, formatMoney, formatMoneyWithCode, formatTotals, minorToDecimalString, totalsByCurrency } from "./money";
+import { convertMinor, formatMoney, formatMoneyWithCode, formatTotals, isPayPalBillable, minorToDecimalString, totalsByCurrency } from "./money";
 
 describe("formatMoney", () => {
   it("formats each record in its own currency", () => {
@@ -71,5 +71,14 @@ describe("convertMinor", () => {
     expect(convertMinor(100, "ZZZ", "USD")).toBeNull();
     expect(convertMinor(100, "USD", "ZZZ")).toBeNull();
     expect(convertMinor(100, null, "USD")).toBeNull();
+  });
+});
+
+describe("isPayPalBillable", () => {
+  it("accepts currencies PayPal can invoice in and rejects KES", () => {
+    expect(isPayPalBillable("USD")).toBe(true);
+    expect(isPayPalBillable(" gbp ")).toBe(true);
+    expect(isPayPalBillable("KES")).toBe(false);
+    expect(isPayPalBillable(undefined)).toBe(false);
   });
 });

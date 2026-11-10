@@ -6,6 +6,15 @@
 export const DEFAULT_CURRENCY = "KES" as const;
 export const SELECTABLE_CURRENCIES = ["KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF"] as const;
 export type SelectableCurrency = (typeof SELECTABLE_CURRENCIES)[number];
+/**
+ * Currencies PayPal can invoice and pay out in (PayPal REST currency codes). KES is not one of them, so it
+ * can be used for display but not as the default for new invoices.
+ */
+export const PAYPAL_BILLABLE_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "CHF"] as const;
+export const PAYPAL_FALLBACK_CURRENCY = "USD" as const;
+export function isPayPalBillable(code: string | null | undefined): boolean {
+  return (PAYPAL_BILLABLE_CURRENCIES as readonly string[]).includes((code ?? "").trim().toUpperCase());
+}
 export const SUPPORTED_DISPLAY_CURRENCIES = ["KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF", "ZAR", "NGN"] as const;
 
 export const CURRENCY_LABELS: Record<string, string> = {

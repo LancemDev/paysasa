@@ -9,7 +9,7 @@ from psycopg_pool import AsyncConnectionPool
 from app.agent.llm import LLM, ToolResult
 from app.agent.prompt import build_system_prompt
 from app.agent.tools import TOOL_SPECS, ToolContext, execute_tool
-from app.money import DEFAULT_CURRENCY, INVOICE_CURRENCIES, invoice_currency
+from app.money import DEFAULT_CURRENCY, PAYPAL_CURRENCIES, invoice_currency
 from app.paypal_contract import PayPalAdapter
 
 log = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ async def run_agent(
                       llm=llm)
     system = build_system_prompt(
         today=today, display_currency=display_currency, currency=currency,
-        currencies=INVOICE_CURRENCIES, contacts=contacts,
+        currencies=PAYPAL_CURRENCIES, contacts=contacts,
     )
 
     calls_log: list[dict] = []

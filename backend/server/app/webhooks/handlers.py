@@ -113,6 +113,66 @@ async def handle_invoice_cancelled(conn: AsyncConnection, resource: dict) -> str
     return None
 
 
+async def handle_invoice_refunded(conn: AsyncConnection, resource: dict) -> str | None:
+    """A paid invoice was refunded (fully or partly): stop its payouts that haven't been sent yet.
+
+    The invoice stays `paid` (there is no refunded status); payouts already submitted to PayPal can't be recalled.
+    """
+    paypal_id = resource.get("id")
+    invoice = await _invoice_with_contact(conn, "i.paypal_invoice_id = %s", paypal_id)
+    if invoice is None:
+        return f"unknown invoice {paypal_id}"
+    await log_activity(
+        conn, owner_id=invoice["owner_id"], actor="paypal", event="invoice.refunded",
+        message=f"PayPal reported a refund on {invoice['contact_name']}'s invoice for {invoice['description']}",
+        entity_type="invoice", entity_id=invoice["id"], details={"paypal_status": resource.get("status")},
+    )
+    for status in ("locked", "awaiting_approval"):
+        for a in await _open_actions(conn, invoice["id"], "payout", status):
+            await transition(
+                conn, "pending_actions", a["id"], status, "cancelled", actor="paypal", event="payout.cancelled",
+                message=f"{a['summary']}: cancelled because the invoice was refunded",
+            )
+    return None
+
+
+# Item-level outcomes that mean the payee did not get (or keep) the money.
+PAYOUT_ITEM_FAILURES = ("BLOCKED", "CANCELED", "DENIED", "FAILED", "REFUNDED", "RETURNED", "UNCLAIMED")
+
+
+async def handle_payout_item(conn: AsyncConnection, resource: dict) -> str | None:
+    """PAYMENT.PAYOUTS-ITEM.<failure>: the batch can succeed while its one item is unclaimed or returned."""
+    item_status = str(resource.get("transaction_status") or "").upper()
+    batch_id = resource.get("payout_batch_id")
+    sender_item_id = (resource.get("payout_item") or {}).get("sender_item_id")  # we send our idempotency key
+    cur = await conn.execute(
+        """select * from pending_actions where type = 'payout'
+           and (idempotency_key = %s or paypal_payout_batch_id = %s) for update""",
+        (sender_item_id, batch_id),
+    )
+    action = await cur.fetchone()
+    if action is None:
+        return f"unknown payout item {resource.get('payout_item_id')}"
+    if action["status"] == "executing":
+        raise RetryLater(f"payout {action['id']} still executing")
+    reason = f"PayPal payout item {item_status or 'failed'}"
+    if item_status == "UNCLAIMED":
+        reason += ": the payee has no PayPal account for this email yet; PayPal returns the money if it isn't claimed"
+    if action["status"] == "submitted":
+        await transition(
+            conn, "pending_actions", action["id"], "submitted", "failed", actor="paypal", event="payout.failed",
+            message=f"{action['summary']}: {reason}", set_fields={"error": reason},
+        )
+    elif action["status"] == "succeeded":
+        # Succeeded is final in our state machine; record what PayPal said so the owner can follow up.
+        await log_activity(
+            conn, owner_id=action["owner_id"], actor="paypal", event="payout.item_problem",
+            message=f"{action['summary']}: {reason}", entity_type="pending_action", entity_id=action["id"],
+            details={"transaction_status": item_status},
+        )
+    return None
+
+
 async def handle_payout_batch(conn: AsyncConnection, resource: dict, *, success: bool) -> str | None:
     header = resource.get("batch_header") or {}
     batch_id = header.get("payout_batch_id")

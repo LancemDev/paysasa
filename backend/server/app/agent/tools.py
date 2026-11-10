@@ -18,7 +18,7 @@ from app.activity import log_activity
 from app.agent.draft_reminder import draft_reminder as write_reminder
 from app.agent.llm import LLM, ToolSpec
 from app.money import (
-    INVOICE_CURRENCIES, MoneyError, check_invoice_currency, format_money, parse_amount,
+    PAYPAL_CURRENCIES, MoneyError, check_paypal_currency, format_money, parse_amount,
     parse_percent_hundredths, split_amount,
 )
 from app.paypal_contract import InvoiceItem, PayPalAdapter, PayPalError
@@ -170,7 +170,7 @@ class SendInvoiceArgs(BaseModel):
 
 async def send_invoice(ctx: ToolContext, args: SendInvoiceArgs) -> tuple[dict, str]:
     try:
-        currency = check_invoice_currency(args.currency or ctx.default_currency)
+        currency = check_paypal_currency(args.currency or ctx.default_currency)
         amount_minor = parse_amount(args.amount)
     except MoneyError as e:
         raise ToolError(str(e))
@@ -268,7 +268,24 @@ async def schedule_payout(ctx: ToolContext, args: SchedulePayoutArgs) -> tuple[d
             if amount_minor > invoice["amount_minor"]:
                 raise ToolError("A payout cannot be larger than its invoice.")
 
+            # Payouts that can still move money on this invoice. The invoice row is locked above, so two
+            # concurrent schedule_payout calls on the same invoice can't both pass this check.
+            cur = await conn.execute(
+                """select coalesce(sum(amount_minor), 0)::bigint as committed,
+                          coalesce(bool_or(payee_contact_id = %s and amount_minor = %s), false) as duplicate
+                   from pending_actions
+                   where trigger_invoice_id = %s and type = 'payout'
+                     and status not in ('rejected', 'cancelled', 'failed')""",
+                (payee_id, amount_minor, invoice_id),
+            )
+            existing = await cur.fetchone()
             money = format_money(amount_minor, currency)
+            if existing["duplicate"]:
+                raise ToolError(f"A {money} payout to {payee['name']} is already scheduled on this invoice.")
+            if existing["committed"] + amount_minor > invoice["amount_minor"]:
+                left = format_money(max(invoice["amount_minor"] - existing["committed"], 0), currency)
+                raise ToolError("Payouts on this invoice would add up to more than the invoice. "
+                                f"At most {left} is left to allocate.")
             if invoice["status"] == "paid":
                 status, summary = "awaiting_approval", f"Payout {payee['name']} {money}"
             else:
@@ -464,7 +481,7 @@ TOOLS: dict[str, Tool] = {t.spec.name: t for t in [
                   _obj({"contact_id": {"type": "string"},
                         "description": {"type": "string"},
                         "amount": {"type": "string", "description": "Decimal string, e.g. '1200.00'"},
-                        "currency": {"type": "string", "enum": list(INVOICE_CURRENCIES)},
+                        "currency": {"type": "string", "enum": list(PAYPAL_CURRENCIES)},
                         "due_in_days": {"type": "integer", "description": "Days until due. Default 14."}},
                        ["contact_id", "description", "amount"])),
          SendInvoiceArgs, send_invoice),
