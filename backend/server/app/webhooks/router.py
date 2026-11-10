@@ -11,7 +11,7 @@ from app.deps import get_adapter
 from app.paypal_contract import PayPalAdapter
 from app.webhooks.handlers import (
     PAYOUT_ITEM_FAILURES, RetryLater, handle_invoice_cancelled, handle_invoice_paid, handle_invoice_refunded,
-    handle_payout_batch, handle_payout_item,
+    handle_payout_batch, handle_payout_item, invoice_resource,
 )
 
 log = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ async def process_event(adapter: PayPalAdapter, event_id: str, event_type: str, 
         await conn.execute(
             """insert into webhook_events (id, event_type, resource_id, payload) values (%s, %s, %s, %s)
                on conflict (id) do nothing""",
-            (event_id, event_type, resource.get("id"), Jsonb(payload)),
+            (event_id, event_type, invoice_resource(resource).get("id"), Jsonb(payload)),
         )
 
     async with pool.connection() as conn:

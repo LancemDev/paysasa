@@ -17,6 +17,16 @@ class RetryLater(Exception):
     """A temporary condition; the route answers 500 so PayPal redelivers."""
 
 
+def invoice_resource(resource: dict) -> dict:
+    """The invoice inside an INVOICING.* event.
+
+    PayPal's v2 invoicing webhooks wrap it: {"resource": {"invoice": {"id": "INV2-...", ...}}}. A flat
+    {"resource": {"id": ...}} is still accepted.
+    """
+    nested = resource.get("invoice")
+    return nested if isinstance(nested, dict) else resource
+
+
 async def _invoice_with_contact(conn: AsyncConnection, where: str, value) -> dict | None:
     cur = await conn.execute(
         f"""select i.*, c.name as contact_name from invoices i join contacts c on c.id = i.contact_id
@@ -83,7 +93,7 @@ async def apply_invoice_cancelled(conn: AsyncConnection, invoice: dict, *, actor
 
 
 async def handle_invoice_paid(conn: AsyncConnection, adapter: PayPalAdapter, resource: dict) -> str | None:
-    paypal_id = resource.get("id")
+    paypal_id = invoice_resource(resource).get("id")
     invoice = await _invoice_with_contact(conn, "i.paypal_invoice_id = %s", paypal_id)
     if invoice is None:
         return f"unknown invoice {paypal_id}"
@@ -104,7 +114,7 @@ async def handle_invoice_paid(conn: AsyncConnection, adapter: PayPalAdapter, res
 
 
 async def handle_invoice_cancelled(conn: AsyncConnection, resource: dict) -> str | None:
-    paypal_id = resource.get("id")
+    paypal_id = invoice_resource(resource).get("id")
     invoice = await _invoice_with_contact(conn, "i.paypal_invoice_id = %s", paypal_id)
     if invoice is None:
         return f"unknown invoice {paypal_id}"
@@ -118,14 +128,15 @@ async def handle_invoice_refunded(conn: AsyncConnection, resource: dict) -> str 
 
     The invoice stays `paid` (there is no refunded status); payouts already submitted to PayPal can't be recalled.
     """
-    paypal_id = resource.get("id")
+    inv = invoice_resource(resource)
+    paypal_id = inv.get("id")
     invoice = await _invoice_with_contact(conn, "i.paypal_invoice_id = %s", paypal_id)
     if invoice is None:
         return f"unknown invoice {paypal_id}"
     await log_activity(
         conn, owner_id=invoice["owner_id"], actor="paypal", event="invoice.refunded",
         message=f"PayPal reported a refund on {invoice['contact_name']}'s invoice for {invoice['description']}",
-        entity_type="invoice", entity_id=invoice["id"], details={"paypal_status": resource.get("status")},
+        entity_type="invoice", entity_id=invoice["id"], details={"paypal_status": inv.get("status")},
     )
     for status in ("locked", "awaiting_approval"):
         for a in await _open_actions(conn, invoice["id"], "payout", status):
