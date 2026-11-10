@@ -69,7 +69,7 @@ async def test_context_and_history(client, pool, user, llm):
     await client.post("/api/agent/message", json={"message": "again"}, headers=auth(user))
     assert llm.history == [("hello", "Hi")]
     assert "Sarah <sarah@example.com> (contractor; aliases: my editor)" in llm.systems[-1]
-    assert "default currency is USD" in llm.systems[-1]
+    assert "new invoices are settled in USD" in llm.systems[-1]
 
 
 async def test_unknown_recipient_without_email_creates_nothing(client, pool, user, llm):
@@ -104,7 +104,7 @@ async def test_unsupported_currency_is_refused(client, pool, user, llm):
     assert "KES" in err
     assert "KES" in r.json()["reply"] or "currency" in r.json()["reply"].lower()
     assert await fetchall(pool, "select * from invoices") == []
-    assert "Supported currencies are KES, USD, EUR, GBP, CAD, AUD, CHF" in llm.systems[0]
+    assert "PayPal can create invoices in USD, EUR, GBP, CAD, AUD, CHF" in llm.systems[0]
 
 
 async def run_tool(client, user, llm, name, /, **args):

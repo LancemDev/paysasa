@@ -29,8 +29,10 @@ begin
     raise exception 'Demo user % not found in auth.users. Sign up first.', demo_email;
   end if;
 
+  -- The books below stay in USD (PayPal can settle USD). The app displays every amount in the
+  -- profile's currency, so the demo opens in KES while the PayPal invoices remain USD.
   insert into profiles (id, display_name, default_currency)
-  values (uid, 'Kwame', 'USD')
+  values (uid, 'Kwame', 'KES')
   on conflict (id) do nothing;
 
   insert into contacts (owner_id, name, email, role, aliases) values

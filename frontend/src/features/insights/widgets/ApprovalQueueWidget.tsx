@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import { actionSummary } from "@/lib/actionSummary";
 import { formatDateTime } from "@/lib/dates";
 import { formatMoneyWithCode } from "@/lib/money";
 import { useWorkspace } from "@/lib/workspace";
@@ -37,7 +38,7 @@ export function ApprovalQueueWidget() {
                   {(a.payee_contact_id && name.get(a.payee_contact_id)) || "payee"}
                 </>
               ) : (
-                a.summary
+                actionSummary(a, { clientName: invoice ? name.get(invoice.contact_id) : undefined, invoice })
               )}
             </p>
             <p className="mt-0.5 text-xs text-muted">

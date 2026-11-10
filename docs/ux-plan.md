@@ -140,8 +140,9 @@ In dark mode, a lighter surface carries elevation rather than a shadow.
 - **Quick replies:** the backend sends plain-text questions. If a reply ends with "?" and the run made no successful
   write, it's shown as a question, with contextual chips (currency mentioned → USD / GBP / EUR; otherwise none) and the
   input focused.
-- **Currencies:** formatting supports any ISO code (USD, GBP, EUR, KES, ZAR, NGN tested). The agent only creates USD,
-  GBP or EUR. There's no FX, so no KES equivalent.
+- **Currencies:** formatting supports any ISO code (USD, GBP, EUR, KES, ZAR, NGN tested). The agent creates invoices in
+  USD, EUR, GBP, CAD, AUD or CHF; KES is display-only because PayPal can't invoice in it. The dashboard converts every
+  amount to the profile currency with static indicative rates, while PayPal keeps the original currency.
 - **Follow-up reminders** are `invoice_reminder` actions: an editable draft, with Send (approve with the edited
   `message`) and Discard (reject).
 - **Sample history:** with `VITE_ENABLE_DEMO=true`, Insights can include sample history, labelled as demo only.

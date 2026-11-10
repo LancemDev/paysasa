@@ -90,7 +90,8 @@ Please run the QA checklist below against the real stack.
 
 **Other limits:**
 - No invoice edit or cancel, because the agent sends invoices immediately.
-- No KES equivalent, because there are no FX rates.
+- Currency conversion is display-only, at static indicative FX rates; PayPal invoices and payouts keep their original
+  currency.
 - No "viewed" step in the timeline, because PayPal doesn't report it.
 - Without a licence key, AG Grid Enterprise shows a trial watermark. **Get a key from the AG Grid sponsor before
   recording**, or the watermark will appear in the video.

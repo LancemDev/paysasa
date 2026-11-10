@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, formatMoneyWithCode, formatTotals, minorToDecimalString, totalsByCurrency } from "./money";
+import { convertMinor, formatMoney, formatMoneyWithCode, formatTotals, minorToDecimalString, totalsByCurrency } from "./money";
 
 describe("formatMoney", () => {
   it("formats each record in its own currency", () => {
@@ -53,5 +53,23 @@ describe("totals", () => {
 
   it("is empty for no rows", () => {
     expect(formatTotals({})).toBe("");
+  });
+});
+
+describe("convertMinor", () => {
+  it("restates an amount and gets back to the original", () => {
+    const kes = convertMinor(120000, "USD", "KES");
+    expect(kes).toBe(15516000); // $1,200.00 × 129.3 = KSh 155,160.00
+    expect(convertMinor(kes!, "KES", "USD")).toBe(120000);
+  });
+
+  it("is a no-op in the same currency", () => {
+    expect(convertMinor(24000, "USD", "usd")).toBe(24000);
+  });
+
+  it("returns null when a rate is unknown", () => {
+    expect(convertMinor(100, "ZZZ", "USD")).toBeNull();
+    expect(convertMinor(100, "USD", "ZZZ")).toBeNull();
+    expect(convertMinor(100, null, "USD")).toBeNull();
   });
 });

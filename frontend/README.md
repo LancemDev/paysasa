@@ -83,7 +83,9 @@ as the grids. It loads lazily, and is prefetched when the user hovers or focuses
 
 - **Data model** (`features/insights/studioData.ts`): contacts, invoices, open receivables, payouts and the audit log,
   with relationships and a calendar. **Money is split into one field per currency** (e.g. `invoicedUSD`,
-  `invoicedGBP`), each formatted in its own currency, so no widget can add different currencies together.
+  `invoicedGBP`), each formatted in its own currency, so no widget can add different currencies together. Live rows
+  are restated in the profile's display currency first (`lib/displayCurrency.ts`, indicative rates in `lib/money.ts`),
+  so the report reads in one currency while PayPal keeps each invoice's original amount.
 - **Default report** (`studioReport.ts`) has three pages:
   - Cash flow: KPIs with sparklines, invoiced vs collected by month, aging, top clients, a per-currency pivot.
   - Payouts & approvals.

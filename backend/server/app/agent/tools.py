@@ -18,7 +18,7 @@ from app.activity import log_activity
 from app.agent.draft_reminder import draft_reminder as write_reminder
 from app.agent.llm import LLM, ToolSpec
 from app.money import (
-    ALLOWED_CURRENCIES, MoneyError, check_currency, format_money, parse_amount,
+    INVOICE_CURRENCIES, MoneyError, check_invoice_currency, format_money, parse_amount,
     parse_percent_hundredths, split_amount,
 )
 from app.paypal_contract import InvoiceItem, PayPalAdapter, PayPalError
@@ -170,7 +170,7 @@ class SendInvoiceArgs(BaseModel):
 
 async def send_invoice(ctx: ToolContext, args: SendInvoiceArgs) -> tuple[dict, str]:
     try:
-        currency = check_currency(args.currency or ctx.default_currency)
+        currency = check_invoice_currency(args.currency or ctx.default_currency)
         amount_minor = parse_amount(args.amount)
     except MoneyError as e:
         raise ToolError(str(e))
@@ -464,9 +464,9 @@ TOOLS: dict[str, Tool] = {t.spec.name: t for t in [
                   _obj({"contact_id": {"type": "string"},
                         "description": {"type": "string"},
                         "amount": {"type": "string", "description": "Decimal string, e.g. '1200.00'"},
-                        "currency": {"type": "string", "enum": list(ALLOWED_CURRENCIES)},
+                        "currency": {"type": "string", "enum": list(INVOICE_CURRENCIES)},
                         "due_in_days": {"type": "integer", "description": "Days until due. Default 14."}},
-                       ["contact_id", "description", "amount", "currency"])),
+                       ["contact_id", "description", "amount"])),
          SendInvoiceArgs, send_invoice),
     Tool(ToolSpec("schedule_payout", "Queue a payout to a contractor that unlocks when the trigger invoice is paid "
                   "and then needs the user's approval on the dashboard. Give split_percent or amount, not both.",

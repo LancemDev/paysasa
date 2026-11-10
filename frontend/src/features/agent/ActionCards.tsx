@@ -170,8 +170,10 @@ function PayoutCard({ card }: { card: Extract<ActionCardModel, { kind: "payout" 
 
 function ReminderCard({ card }: { card: Extract<ActionCardModel, { kind: "reminder" }> }) {
   const { data: actions } = useActions();
+  const invoices = useInvoicesById();
   const { openApproval, openInvoice } = useWorkspace();
   const live = actions?.find((a) => a.id === card.actionId);
+  const invoice = live?.trigger_invoice_id ? invoices.get(live.trigger_invoice_id) : undefined;
   const r = card.result;
   const status = live?.status ?? r.status;
   const awaiting = status === "awaiting_approval";
@@ -202,7 +204,10 @@ function ReminderCard({ card }: { card: Extract<ActionCardModel, { kind: "remind
         <dd>{r.contact}</dd>
         <dt className="text-muted">Invoice</dt>
         <dd>
-          {r.description} <span className="tabular font-semibold">{r.amount}</span>
+          {r.description}{" "}
+          <span className="tabular font-semibold">
+            {invoice ? formatMoneyWithCode(invoice.amount_minor, invoice.currency) : r.amount}
+          </span>
         </dd>
       </dl>
       {message && <blockquote className="mt-2 whitespace-pre-line rounded-xl bg-surface-2 px-3 py-2 text-muted">{message}</blockquote>}

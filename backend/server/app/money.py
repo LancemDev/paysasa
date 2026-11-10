@@ -3,6 +3,9 @@ import re
 
 DEFAULT_CURRENCY = "KES"
 ALLOWED_CURRENCIES: tuple[str, ...] = ("KES", "USD", "EUR", "GBP", "CAD", "AUD", "CHF")
+# PayPal Invoicing accepts these for our merchant account. KES is a display currency only: PayPal
+# rejects it with "Currency Code is not valid", so new invoices fall back to USD.
+INVOICE_CURRENCIES: tuple[str, ...] = ("USD", "EUR", "GBP", "CAD", "AUD", "CHF")
 _SYMBOLS = {"KES": "KSh ", "USD": "$", "EUR": "€", "GBP": "£", "CAD": "CA$", "AUD": "A$", "CHF": "CHF "}
 _DECIMALS = 2  # every allowed currency uses 2 decimal places
 
@@ -21,6 +24,22 @@ def check_currency(currency: str) -> str:
             f"Currency {currency!r} is not supported. Use one of: {', '.join(ALLOWED_CURRENCIES)}."
         )
     return code
+
+
+def check_invoice_currency(currency: str) -> str:
+    """Validate a currency PayPal Invoicing can actually settle for this account."""
+    code = check_currency(currency)
+    if code not in INVOICE_CURRENCIES:
+        raise MoneyError(
+            f"PayPal can't create invoices in {code}. Use one of: {', '.join(INVOICE_CURRENCIES)}."
+        )
+    return code
+
+
+def invoice_currency(display_currency: str | None) -> str:
+    """The currency new invoices use: the display currency when PayPal supports it, else USD."""
+    code = (display_currency or "").strip().upper()
+    return code if code in INVOICE_CURRENCIES else "USD"
 
 
 def parse_amount(value: str) -> int:

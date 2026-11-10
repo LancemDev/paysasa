@@ -8,7 +8,7 @@ import { cn } from "@/components/ui/cn";
 import { useAuth } from "@/auth/AuthProvider";
 import { env } from "@/lib/env";
 import { usePayPalMode } from "@/lib/paypalMode";
-import { CURRENCY_LABELS, DEFAULT_CURRENCY, SELECTABLE_CURRENCIES, formatMoney, minorToDecimalString } from "@/lib/money";
+import { CURRENCY_LABELS, DEFAULT_CURRENCY, SELECTABLE_CURRENCIES, convertMinor, formatMoney, minorToDecimalString } from "@/lib/money";
 import { useProfile } from "@/lib/queries";
 import { qk } from "@/lib/queryKeys";
 import { api, toUserMessage } from "@/lib/api";
@@ -59,7 +59,13 @@ export function SettingsPage() {
     try {
       await api.updateProfile({ default_currency: selectedCurrency });
       await qc.invalidateQueries({ queryKey: qk.profile });
-      toast.success("Default currency saved", `New invoices and amounts will default to ${selectedCurrency}.`);
+      // Keep the payout safety limit worth the same after the display currency changes.
+      const nextThreshold = convertMinor(settings.secondConfirmMinor, currency, selectedCurrency);
+      if (nextThreshold != null) {
+        update({ secondConfirmMinor: nextThreshold });
+        setThreshold(minorToDecimalString(nextThreshold, 2));
+      }
+      toast.success("Currency saved", `Amounts across PaySasa now show in ${selectedCurrency}.`);
     } catch (e) {
       toast.error("Couldn't save currency", toUserMessage(e));
     } finally {
@@ -85,7 +91,7 @@ export function SettingsPage() {
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex flex-1 flex-col gap-1.5">
             <label htmlFor={currencySelectId} className="text-[13px] font-medium">
-              Default currency
+              Display currency
             </label>
             <select
               id={currencySelectId}
@@ -100,7 +106,15 @@ export function SettingsPage() {
                 </option>
               ))}
             </select>
-            <p className="text-[13px] text-muted">Used when you create invoices without specifying a currency. You can still choose another supported currency per invoice.</p>
+            <p className="text-[13px] text-muted">
+              Everything is shown in this currency, using indicative rates. New PayPal invoices use it when PayPal
+              supports it, otherwise USD; PayPal keeps each invoice or payout in its original currency.
+            </p>
+            {selectedCurrency === "KES" && (
+              <p className="text-[13px] text-muted">
+                PayPal can't settle invoices in KES, so new invoices are created in USD and shown here in KES.
+              </p>
+            )}
           </div>
           <Button onClick={() => void saveCurrency()} disabled={profile.isLoading || savingCurrency || selectedCurrency === currency}>
             {savingCurrency ? "Saving…" : "Save"}

@@ -85,7 +85,14 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
         <dt className="text-muted">Line item</dt>
         <dd>1 × {invoice.description}</dd>
         <dt className="text-muted">Amount</dt>
-        <dd className="tabular font-semibold">{formatMoneyWithCode(invoice.amount_minor, invoice.currency)}</dd>
+        <dd className="tabular font-semibold">
+          {formatMoneyWithCode(invoice.amount_minor, invoice.currency)}
+          {invoice.source_currency && invoice.source_currency !== invoice.currency && invoice.source_amount_minor != null && (
+            <span className="block text-[12px] font-normal text-muted">
+              Issued in {formatMoneyWithCode(invoice.source_amount_minor, invoice.source_currency)}
+            </span>
+          )}
+        </dd>
         <dt className="text-muted">Due date</dt>
         <dd>{invoice.due_date ? formatDate(invoice.due_date) : "-"}</dd>
         <dt className="text-muted">PayPal</dt>

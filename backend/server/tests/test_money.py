@@ -1,8 +1,8 @@
 import pytest
 
 from app.money import (
-    MoneyError, check_currency, format_minor, format_money, parse_amount,
-    parse_percent_hundredths, split_amount,
+    MoneyError, check_currency, check_invoice_currency, format_minor, format_money, invoice_currency,
+    parse_amount, parse_percent_hundredths, split_amount,
 )
 
 
@@ -39,3 +39,16 @@ def test_currency():
     for bad in ("ZAR", "NGN", "XYZ", ""):
         with pytest.raises(MoneyError):
             check_currency(bad)
+
+
+def test_invoice_currency():
+    # PayPal Invoicing supports these for our merchant account.
+    for code in ("usd", "EUR", "gbp", "CAD", "AUD", "CHF"):
+        assert check_invoice_currency(code) == code.upper()
+    # KES is display-only: new invoices fall back to USD.
+    with pytest.raises(MoneyError):
+        check_invoice_currency("KES")
+    assert invoice_currency("KES") == "USD"
+    assert invoice_currency("eur") == "EUR"
+    assert invoice_currency(None) == "USD"
+    assert invoice_currency("ZZZ") == "USD"

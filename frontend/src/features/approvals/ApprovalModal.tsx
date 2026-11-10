@@ -102,6 +102,12 @@ function PayoutReview({ action, payee, invoice, client, outcome, approve, reject
             This will send <span className="tabular">{money}</span> to {payeeName} via PayPal.
           </p>
           <p className="mt-1 text-[13px] text-muted">Once PayPal accepts it, it can't be undone from PaySasa.</p>
+          {action.source_currency && action.source_currency !== action.currency && action.source_amount_minor != null && (
+            <p className="mt-1 text-[12px] text-muted">
+              Shown in {action.currency} at an indicative rate. PayPal sends the original{" "}
+              {formatMoney(action.source_amount_minor, action.source_currency)} {action.source_currency}.
+            </p>
+          )}
         </div>
         {invoice && (
           <div aria-hidden className="rounded-2xl border border-border bg-surface-2 px-4 pt-4 pb-3">
@@ -367,6 +373,11 @@ function ResultView({ action, payee, outcome, onClose }: { action: PendingAction
         <h3 className="text-lg font-semibold">{title}</h3>
         {outcome.kind === "conflict" && <p className="text-[13px] text-muted">{outcome.message}</p>}
         <div className="max-w-sm text-muted">{body}</div>
+        {payout && action.source_currency && action.source_currency !== action.currency && action.source_amount_minor != null && (
+          <p className="text-[12px] text-muted">
+            PayPal sent the original {formatMoney(action.source_amount_minor, action.source_currency)} {action.source_currency}.
+          </p>
+        )}
         {(action.paypal_payout_batch_id || action.executed_at) && (
           <dl className="mt-1 grid w-full max-w-sm grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-[var(--radius-card)] bg-surface-2 p-3 text-left text-[13px]">
             {action.paypal_payout_batch_id && (
