@@ -25,7 +25,7 @@ ACTION_TRANSITIONS: dict[tuple[str, str], tuple[str, ...]] = {
     ("locked", "cancelled"): ("payout",),
     ("awaiting_approval", "rejected"): ("payout", "invoice_reminder"),
     ("awaiting_approval", "executing"): ("payout", "invoice_reminder"),
-    ("awaiting_approval", "cancelled"): ("invoice_reminder",),
+    ("awaiting_approval", "cancelled"): ("payout", "invoice_reminder"),  # payout: its invoice was refunded
     ("executing", "submitted"): ("payout",),
     ("executing", "succeeded"): ("invoice_reminder",),
     ("executing", "failed"): ("payout", "invoice_reminder"),

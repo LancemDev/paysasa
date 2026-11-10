@@ -1,7 +1,7 @@
 import pytest
 
 from app.money import (
-    MoneyError, check_currency, format_minor, format_money, parse_amount,
+    MoneyError, check_currency, check_paypal_currency, format_minor, format_money, parse_amount,
     parse_percent_hundredths, split_amount,
 )
 
@@ -39,3 +39,12 @@ def test_currency():
     for bad in ("ZAR", "NGN", "XYZ", ""):
         with pytest.raises(MoneyError):
             check_currency(bad)
+
+
+def test_paypal_currency():
+    assert check_paypal_currency(" gbp ") == "GBP"
+    with pytest.raises(MoneyError, match="PayPal can't invoice or pay out in KES"):
+        check_paypal_currency("kes")
+    for bad in ("ZAR", "XYZ", ""):
+        with pytest.raises(MoneyError, match="not supported"):
+            check_paypal_currency(bad)

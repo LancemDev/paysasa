@@ -19,7 +19,7 @@ Copy `server/.env.example` to `server/.env` (git-ignored). On Render, set the sa
 
 ### Database
 
-1. In the Supabase SQL editor (or `supabase db push`), run `supabase/migrations/0001_init.sql`.
+1. In the Supabase SQL editor (or `supabase db push`), run the files in `supabase/migrations/` in order (`0001`, `0002`, `0003`). `0003` puts the default currency back to USD, because PayPal can't invoice in KES.
 2. Sign up the demo user (email `demo@paysasa.app`, or edit the email at the top of `seed.sql`).
 3. Put Sarah's PayPal sandbox email into `supabase/seed.sql` and run it. It is safe to re-run.
 
@@ -65,7 +65,7 @@ All `/api/*` routes need `Authorization: Bearer <Supabase access token>`. Errors
 
 ### Deploy (Render)
 
-`backend/render.yaml` defines the web service `paysasa-api` and the daily cron job `paysasa-chase` (06:00 UTC), both rooted at `backend/server`. Because the file is not at the repo root, set the Blueprint path to `backend/render.yaml` when creating the Blueprint on Render. Once the web service is live, the PayPal webhook URL is `https://<service>.onrender.com/webhooks/paypal`, subscribed to `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED`, `PAYMENT.PAYOUTSBATCH.SUCCESS` and `PAYMENT.PAYOUTSBATCH.DENIED`.
+`backend/render.yaml` defines the web service `paysasa-api` and the daily cron job `paysasa-chase` (06:00 UTC), both rooted at `backend/server`. Because the file is not at the repo root, set the Blueprint path to `backend/render.yaml` when creating the Blueprint on Render. Once the web service is live, the PayPal webhook URL is `https://<service>.onrender.com/webhooks/paypal`, subscribed to `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED`, `INVOICING.INVOICE.REFUNDED`, `PAYMENT.PAYOUTSBATCH.SUCCESS`, `PAYMENT.PAYOUTSBATCH.DENIED`, and the payout item events `PAYMENT.PAYOUTS-ITEM.BLOCKED`, `…CANCELED`, `…DENIED`, `…FAILED`, `…REFUNDED`, `…RETURNED` and `…UNCLAIMED`.
 
 **The mock adapter needs one persistent instance.** It keeps its invoices and payouts in memory, so a webhook that lands on a different instance (or after a restart) cannot find the invoice and PayPal will keep retrying. A long-lived service like Render's works; a serverless host with several instances does not, until the real adapter is in place or the mock is backed by Postgres.
 
